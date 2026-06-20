@@ -8,14 +8,8 @@
 ![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen.svg)
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Status-Active-success" alt="Status">
-  <img src="https://img.shields.io/badge/Windows-✓-blue" alt="Windows">
-  <img src="https://img.shields.io/badge/Linux-✓-orange" alt="Linux">
-  <img src="https://img.shields.io/badge/Mac-✓-lightgrey" alt="Mac">
   <br>
-  <img src="https://visitor-badge.glitch.me/badge?page_id=tu-usuario.DentalClinicSystem" alt="Visitors">
-  <img src="https://img.shields.io/github/stars/tu-usuario/DentalClinicSystem?style=social" alt="Stars">
-  <img src="https://img.shields.io/github/forks/tu-usuario/DentalClinicSystem?style=social" alt="Forks">
+  <img src="https://api.visitorbadge.io/api/visitors?path=Miller38%2FDentalClinicSystem&label=Visitas&countColor=%23263759" alt="Visitors">
 </div>
 
 ---
@@ -53,7 +47,7 @@
 
 ### Dashboard Principal
 <img src="images/dashboard.jpg" alt="Dashboard" width="45%">
-<img src="images/dashboard2.png" alt="Dashboard 2" width="45%">
+<img src="images/dashboard2.jpg" alt="Dashboard 2" width="45%">
 
 <br><br>
 
