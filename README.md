@@ -43,61 +43,8 @@
 
 ## 🖼️ Galería de Imágenes
 
-<div align="center">
-
 ### Dashboard Principal
 <img src="images/dashboard.jpg" alt="Dashboard" width="45%">
-<img src="images/dashboard2.jpg" alt="Dashboard 2" width="45%">
-
-<br><br>
-
-### Gestión de Pacientes
-<img src="images/pacientes.png" alt="Pacientes" width="45%">
-<img src="images/pacientes-detalle.png" alt="Detalle Paciente" width="45%">
-
-<br><br>
-
-### Módulo de Citas
-<img src="images/citas.png" alt="Citas" width="45%">
-<img src="images/citas-agenda.png" alt="Agenda Citas" width="45%">
-
-<br><br>
-
-### Panel de Finanzas
-<img src="images/finanzas.png" alt="Finanzas" width="45%">
-<img src="images/finanzas-ventas.png" alt="Ventas" width="45%">
-
-<br><br>
-
-### Gestión de Servicios
-<img src="images/servicios.png" alt="Servicios" width="45%">
-<img src="images/servicios-editar.png" alt="Editar Servicio" width="45%">
-
-<br><br>
-
-### Inventario
-<img src="images/inventario.png" alt="Inventario" width="45%">
-<img src="images/inventario-movimientos.png" alt="Movimientos" width="45%">
-
-<br><br>
-
-### Reportes
-<img src="images/reportes.png" alt="Reportes" width="45%">
-<img src="images/reportes-graficos.png" alt="Gráficos" width="45%">
-
-<br><br>
-
-### Facturación PDF
-<img src="images/factura-pdf.png" alt="Factura PDF" width="45%">
-<img src="images/factura-detalle.png" alt="Detalle Factura" width="45%">
-
-<br><br>
-
-### Login y Configuración
-<img src="images/login.png" alt="Login" width="45%">
-<img src="images/configuracion.png" alt="Configuración" width="45%">
-
-</div>
 
 ---
 
