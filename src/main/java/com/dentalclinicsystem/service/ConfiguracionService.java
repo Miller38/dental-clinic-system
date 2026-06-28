@@ -1,6 +1,7 @@
 package com.dentalclinicsystem.service;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Properties;
 
@@ -31,7 +32,8 @@ public class ConfiguracionService {
             "D:\\DentalClinicSystem\\src\\config.properties",
             "C:\\DentalClinicSystem\\src\\config.properties",
             System.getProperty("user.dir") + "\\src\\config.properties",
-            System.getProperty("user.dir") + "\\config.properties"
+            System.getProperty("user.dir") + "\\config.properties",
+            System.getProperty("user.home") + "\\.dentalclinic\\config.properties"
         };
         
         for (String ruta : rutasPosibles) {
@@ -90,6 +92,7 @@ public class ConfiguracionService {
             System.err.println("   email.destino=destino@gmail.com");
             System.err.println("   smtp.host=smtp.gmail.com");
             System.err.println("   smtp.port=587");
+            System.err.println("   smtp.tls=true");
             System.err.println("   iva.porcentaje=19");
             System.err.println("   empresa.nombre=Mi Clinica");
             System.err.println("");
@@ -98,8 +101,6 @@ public class ConfiguracionService {
             System.err.println("   EMAIL_PASSWORD");
             System.err.println("   EMAIL_DESTINO");
             
-            // 🔥 NO PONER CREDENCIALES EN EL CÓDIGO
-            // En lugar de credenciales fijas, lanzar excepción o mostrar error
             configuracionCargada = false;
         }
     }
@@ -133,6 +134,11 @@ public class ConfiguracionService {
         if (smtpPort != null && !smtpPort.isEmpty()) {
             props.setProperty("smtp.port", smtpPort);
         }
+        
+        String smtpTLS = System.getenv("SMTP_TLS");
+        if (smtpTLS != null && !smtpTLS.isEmpty()) {
+            props.setProperty("smtp.tls", smtpTLS);
+        }
     }
     
     private void imprimirConfiguracion() {
@@ -144,7 +150,7 @@ public class ConfiguracionService {
         System.out.println("📊 IVA: " + props.getProperty("iva.porcentaje") + "%");
     }
     
-    // ========== MÉTODOS GET ==========
+    // ========== MÉTODOS GET EXISTENTES ==========
     
     public String getEmailUser() {
         return props.getProperty("email.user");
@@ -212,12 +218,10 @@ public class ConfiguracionService {
         String user = getEmailUser();
         String pass = getEmailPassword();
         return user != null && !user.isEmpty() && 
-               pass != null && !pass.isEmpty();
+               pass != null && !pass.isEmpty() &&
+               !user.equals("tu_correo@gmail.com");
     }
     
-    /**
-     * Verifica si la configuración es válida (no son valores por defecto)
-     */
     public boolean esConfiguracionValida() {
         if (!configuracionCargada) {
             return false;
@@ -226,5 +230,89 @@ public class ConfiguracionService {
         return user != null && !user.isEmpty() && 
                !user.equals("tu_correo@gmail.com") &&
                credencialesConfiguradas();
+    }
+    
+    // =========================================================
+    // ========== NUEVOS MÉTODOS PARA GUARDAR CONFIGURACIÓN =====
+    // =========================================================
+    
+    /**
+     * Guarda la configuración de correo en el archivo properties
+     * Este método es llamado desde el PanelConfiguracion cuando el usuario
+     * hace clic en "Guardar Configuración"
+     * 
+     * @param email Correo electrónico del remitente
+     * @param password Contraseña de aplicación (no la de Gmail)
+     * @param smtpHost Servidor SMTP (ej: smtp.gmail.com)
+     * @param smtpPort Puerto SMTP (587 para TLS, 465 para SSL)
+     * @param usarTLS true para usar TLS, false para SSL
+     * @throws Exception Si hay error al guardar el archivo
+     */
+    public void guardarConfiguracionCorreo(String email, String password, 
+                                           String smtpHost, String smtpPort, 
+                                           boolean usarTLS) throws Exception {
+        
+        // Actualizar propiedades en memoria
+        props.setProperty("email.user", email);
+        props.setProperty("email.password", password);
+        props.setProperty("smtp.host", smtpHost);
+        props.setProperty("smtp.port", smtpPort);
+        props.setProperty("smtp.tls", String.valueOf(usarTLS));
+        
+        // Intentar guardar en diferentes ubicaciones
+        String[] rutasGuardado = {
+            System.getProperty("user.dir") + "\\src\\config.properties",
+            System.getProperty("user.dir") + "\\config.properties",
+            System.getProperty("user.home") + "\\.dentalclinic\\config.properties"
+        };
+        
+        boolean guardado = false;
+        for (String ruta : rutasGuardado) {
+            try {
+                // Crear directorio si no existe
+                java.io.File file = new java.io.File(ruta);
+                if (file.getParentFile() != null) {
+                    file.getParentFile().mkdirs();
+                }
+                
+                // Guardar archivo
+                try (FileOutputStream fos = new FileOutputStream(ruta)) {
+                    props.store(fos, "Configuración actualizada - Dental Clinic System");
+                    System.out.println("✅ Configuración guardada en: " + ruta);
+                    guardado = true;
+                    configuracionCargada = true;
+                    break;
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ No se pudo guardar en: " + ruta);
+            }
+        }
+        
+        if (!guardado) {
+            throw new Exception("No se pudo guardar la configuración en ninguna ubicación");
+        }
+    }
+    
+    /**
+     * Verifica si hay configuración de correo guardada
+     * @return true si las credenciales están configuradas correctamente
+     */
+    public boolean tieneConfiguracionCorreo() {
+        return credencialesConfiguradas();
+    }
+    
+    /**
+     * Obtiene la configuración completa de correo como un Map
+     * @return Map con todas las propiedades de correo
+     */
+    public java.util.Map<String, String> getConfiguracionCorreo() {
+        java.util.Map<String, String> config = new java.util.HashMap<>();
+        config.put("email", getEmailUser());
+        config.put("password", getEmailPassword());
+        config.put("smtp.host", getSmtpHost());
+        config.put("smtp.port", getSmtpPort());
+        config.put("smtp.tls", props.getProperty("smtp.tls", "true"));
+        config.put("empresa.nombre", getEmpresaNombre());
+        return config;
     }
 }

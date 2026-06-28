@@ -21,8 +21,13 @@ public class PanelPacientes extends JPanel {
     private JTextField txtBuscar;
     private JButton btnNuevo, btnEditar, btnEliminar, btnBuscar, btnRefrescar;
     private JLabel lblTotalRegistros;
+    private JLabel lblEstado; // NUEVO: Para mostrar mensajes de estado
     private JComboBox<String> cbFiltro;
     private List<Paciente> listaPacientesActual;
+    
+    // NUEVO: Barra de progreso
+    private JProgressBar progressBar;
+    private JPanel footerPanel;
     
     // Colores del tema oscuro
     private Color darkBg = new Color(30, 30, 35);
@@ -54,7 +59,7 @@ public class PanelPacientes extends JPanel {
         JPanel tablePanel = createTablePanel();
         add(tablePanel, BorderLayout.CENTER);
         
-        // Panel inferior con el contador
+        // Panel inferior con el contador y barra de progreso (MODIFICADO)
         JPanel footerPanel = createFooterPanel();
         add(footerPanel, BorderLayout.SOUTH);
     }
@@ -73,10 +78,10 @@ public class PanelPacientes extends JPanel {
         titleLabel.setForeground(textLight);
         titlePanel.add(titleLabel);
         
-        panel.add(titlePanel, BorderLayout.NORTH); // Título arriba
+        panel.add(titlePanel, BorderLayout.NORTH);
         
         // ===== PANEL DE BÚSQUEDA Y BOTONES =====
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8)); // Alineado a la izquierda
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
         actionPanel.setBackground(darkBg);
         actionPanel.setBorder(new EmptyBorder(5, 0, 0, 0));
         
@@ -149,11 +154,11 @@ public class PanelPacientes extends JPanel {
         actionPanel.add(btnEditar);
         
         // Botón Eliminar
-        btnEliminar = createActionButton(" Eliminar", accentRed);
+        btnEliminar = createActionButton("Eliminar", accentRed);
         btnEliminar.addActionListener(e -> eliminarPaciente());
         actionPanel.add(btnEliminar);
         
-        panel.add(actionPanel, BorderLayout.CENTER); // Botones debajo del título
+        panel.add(actionPanel, BorderLayout.CENTER);
         
         return panel;
     }
@@ -248,82 +253,161 @@ public class PanelPacientes extends JPanel {
         return panel;
     }
     
+    // ================================================================
+    // ========== FOOTER PANEL CON BARRA DE PROGRESO ==========
+    // ================================================================
+    
     private JPanel createFooterPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(darkBg);
-        panel.setPreferredSize(new Dimension(0, 40));
-        panel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        footerPanel = new JPanel(new BorderLayout());
+        footerPanel.setBackground(darkBg);
+        footerPanel.setPreferredSize(new Dimension(0, 50));
+        footerPanel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        
+        // Panel izquierdo: Contador y estado
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        leftPanel.setBackground(darkBg);
         
         lblTotalRegistros = new JLabel("Total: 0 registros");
         lblTotalRegistros.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lblTotalRegistros.setForeground(textGray);
-        panel.add(lblTotalRegistros, BorderLayout.WEST);
+        leftPanel.add(lblTotalRegistros);
         
-        JLabel lblInfo = new JLabel("Doble click para editar | Click derecho para opciones | Ctrl+N Nuevo | Ctrl+E Editar | Ctrl+D Eliminar | Ctrl+F Buscar | F5 Refrescar");
+        // NUEVO: Barra de progreso (oculta por defecto)
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setPreferredSize(new Dimension(150, 18));
+        progressBar.setVisible(false);
+        progressBar.setBackground(new Color(50, 50, 55));
+        progressBar.setForeground(accentBlue);
+        progressBar.setBorderPainted(false);
+        leftPanel.add(progressBar);
+        
+        // NUEVO: Label de estado
+        lblEstado = new JLabel("");
+        lblEstado.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblEstado.setForeground(accentBlue);
+        leftPanel.add(lblEstado);
+        
+        footerPanel.add(leftPanel, BorderLayout.WEST);
+        
+        // Panel derecho: Información de atajos
+        JLabel lblInfo = new JLabel("Doble click para editar | Click derecho para opciones");
         lblInfo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         lblInfo.setForeground(textGray);
-        panel.add(lblInfo, BorderLayout.EAST);
+        footerPanel.add(lblInfo, BorderLayout.EAST);
         
-        return panel;
+        return footerPanel;
     }
     
-    // Crea un botón con estilo consistente
-    private JButton createActionButton(String text, Color color) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btn.setBackground(color);
-        btn.setForeground(Color.WHITE);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setPreferredSize(new Dimension(95, 32));
-        
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(color.brighter());
-            }
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(color);
-            }
+    // ================================================================
+    // ========== MÉTODOS DE CONTROL DE PROGRESO ==========
+    // ================================================================
+    
+    /**
+     * Muestra la barra de progreso con un mensaje
+     */
+    private void mostrarProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            progressBar.setVisible(true);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText(mensaje);
+            lblEstado.setForeground(accentBlue);
+            // Deshabilitar controles durante la carga
+            setControlesEnabled(false);
+            // Cambiar cursor
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         });
-        
-        return btn;
     }
+    
+    /**
+     * Oculta la barra de progreso
+     */
+    private void ocultarProgreso() {
+        SwingUtilities.invokeLater(() -> {
+            progressBar.setVisible(false);
+            lblEstado.setText("");
+            // Habilitar controles
+            setControlesEnabled(true);
+            // Restaurar cursor
+            setCursor(Cursor.getDefaultCursor());
+        });
+    }
+    
+    /**
+     * Actualiza el mensaje de la barra de progreso
+     */
+    private void actualizarMensajeProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            lblEstado.setText(mensaje);
+        });
+    }
+    
+    /**
+     * Habilita/Deshabilita los controles durante operaciones largas
+     */
+    private void setControlesEnabled(boolean enabled) {
+        btnNuevo.setEnabled(enabled);
+        btnEditar.setEnabled(enabled);
+        btnEliminar.setEnabled(enabled);
+        btnBuscar.setEnabled(enabled);
+        btnRefrescar.setEnabled(enabled);
+        txtBuscar.setEnabled(enabled);
+        cbFiltro.setEnabled(enabled);
+        tablaPacientes.setEnabled(enabled);
+    }
+    
+    // ================================================================
+    // ========== MÉTODOS DE CARGA CON PROGRESO ==========
+    // ================================================================
     
     // Carga todos los pacientes desde la base de datos
     private void cargarPacientes() {
-        try {
-            listaPacientesActual = controller.listarTodos();
-            cargarTablaConLista(listaPacientesActual);
-            actualizarContador();
-        } catch (Exception e) {
-            System.err.println("Error al cargar pacientes: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, 
-                "Error al cargar pacientes: " + e.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-    
-    // Carga la tabla con una lista de pacientes
-    private void cargarTablaConLista(List<Paciente> pacientes) {
-        model.setRowCount(0);
+        mostrarProgreso("Cargando pacientes...");
         
-        if (pacientes == null || pacientes.isEmpty()) {
-            return;
-        }
-        
-        for (Paciente p : pacientes) {
-            model.addRow(new Object[]{
-                p.getId(),
-                p.getNombreCompleto(),
-                p.getNumeroDocumento(),
-                p.getTelefono(),
-                p.getEmail() != null ? p.getEmail() : "",
-                p.getGenero() != null ? p.getGenero() : "",
-                p.getEdad() > 0 ? p.getEdad() : ""
-            });
-        }
+        SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                // Simular progreso (opcional)
+                for (int i = 0; i < 10; i++) {
+                    if (isCancelled()) break;
+                    Thread.sleep(50); // Simular carga
+                    final int progress = (i + 1) * 10;
+                    SwingUtilities.invokeLater(() -> {
+                        progressBar.setIndeterminate(false);
+                        progressBar.setValue(progress);
+                        actualizarMensajeProgreso("Cargando pacientes... " + progress + "%");
+                    });
+                }
+                
+                // Operación real
+                listaPacientesActual = controller.listarTodos();
+                return null;
+            }
+            
+            @Override
+            protected void done() {
+                try {
+                    cargarTablaConLista(listaPacientesActual);
+                    actualizarContador();
+                    
+                    if (listaPacientesActual == null || listaPacientesActual.isEmpty()) {
+                        JOptionPane.showMessageDialog(PanelPacientes.this, 
+                            "No hay pacientes registrados", 
+                            "Información", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("Error al cargar pacientes: " + e.getMessage());
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(PanelPacientes.this, 
+                        "Error al cargar pacientes: " + e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    ocultarProgreso();
+                }
+            }
+        };
+        worker.execute();
     }
     
     // Busca pacientes por texto y filtro
@@ -336,63 +420,120 @@ public class PanelPacientes extends JPanel {
             return;
         }
         
-        try {
-            List<Paciente> resultados = controller.buscar(texto);
-            
-            if (!"Todos".equals(filtro) && resultados != null && !resultados.isEmpty()) {
-                String textoLower = texto.toLowerCase();
-                List<Paciente> filtrados = new java.util.ArrayList<>();
-                
-                for (Paciente p : resultados) {
-                    boolean coincide = false;
-                    switch (filtro) {
-                        case "Nombre":
-                            coincide = p.getNombreCompleto().toLowerCase().contains(textoLower);
-                            break;
-                        case "Documento":
-                            coincide = p.getNumeroDocumento().contains(texto);
-                            break;
-                        case "Teléfono":
-                            coincide = p.getTelefono().contains(texto);
-                            if (p.getTelefonoAlternativo() != null) {
-                                coincide = coincide || p.getTelefonoAlternativo().contains(texto);
-                            }
-                            break;
-                        default:
-                            coincide = true;
-                            break;
-                    }
-                    if (coincide) {
-                        filtrados.add(p);
-                    }
+        mostrarProgreso("Buscando: '" + texto + "'...");
+        
+        SwingWorker<List<Paciente>, Void> worker = new SwingWorker<List<Paciente>, Void>() {
+            @Override
+            protected List<Paciente> doInBackground() throws Exception {
+                // Simular progreso
+                for (int i = 0; i < 5; i++) {
+                    if (isCancelled()) break;
+                    Thread.sleep(80);
+                    final int progress = (i + 1) * 20;
+                    SwingUtilities.invokeLater(() -> {
+                        progressBar.setIndeterminate(false);
+                        progressBar.setValue(progress);
+                        actualizarMensajeProgreso("Buscando... " + progress + "%");
+                    });
                 }
-                resultados = filtrados;
+                
+                return controller.buscar(texto);
             }
             
-            cargarTablaConLista(resultados);
-            actualizarContador();
+            @Override
+            protected void done() {
+                try {
+                    List<Paciente> resultados = get();
+                    
+                    // Aplicar filtro adicional si es necesario
+                    if (!"Todos".equals(filtro) && resultados != null && !resultados.isEmpty()) {
+                        String textoLower = texto.toLowerCase();
+                        List<Paciente> filtrados = new java.util.ArrayList<>();
+                        
+                        for (Paciente p : resultados) {
+                            boolean coincide = false;
+                            switch (filtro) {
+                                case "Nombre":
+                                    coincide = p.getNombreCompleto().toLowerCase().contains(textoLower);
+                                    break;
+                                case "Documento":
+                                    coincide = p.getNumeroDocumento().contains(texto);
+                                    break;
+                                case "Teléfono":
+                                    coincide = p.getTelefono().contains(texto);
+                                    if (p.getTelefonoAlternativo() != null) {
+                                        coincide = coincide || p.getTelefonoAlternativo().contains(texto);
+                                    }
+                                    break;
+                                default:
+                                    coincide = true;
+                                    break;
+                            }
+                            if (coincide) {
+                                filtrados.add(p);
+                            }
+                        }
+                        resultados = filtrados;
+                    }
+                    
+                    cargarTablaConLista(resultados);
+                    actualizarContador();
+                    
+                    if (resultados == null || resultados.isEmpty()) {
+                        JOptionPane.showMessageDialog(PanelPacientes.this, 
+                            "No se encontraron pacientes con: '" + texto + "'",
+                            "Sin resultados", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("Error al buscar: " + e.getMessage());
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(PanelPacientes.this, 
+                        "Error al buscar: " + e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    ocultarProgreso();
+                }
+            }
+        };
+        worker.execute();
+    }
+    
+    // Carga la tabla con una lista de pacientes
+    private void cargarTablaConLista(List<Paciente> pacientes) {
+        SwingUtilities.invokeLater(() -> {
+            model.setRowCount(0);
             
-            if (resultados == null || resultados.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "No se encontraron pacientes con: '" + texto + "'",
-                    "Sin resultados", JOptionPane.INFORMATION_MESSAGE);
+            if (pacientes == null || pacientes.isEmpty()) {
+                return;
             }
             
-        } catch (Exception e) {
-            System.err.println("Error al buscar: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, 
-                "Error al buscar: " + e.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
-        }
+            for (Paciente p : pacientes) {
+                model.addRow(new Object[]{
+                    p.getId(),
+                    p.getNombreCompleto(),
+                    p.getNumeroDocumento(),
+                    p.getTelefono(),
+                    p.getEmail() != null ? p.getEmail() : "",
+                    p.getGenero() != null ? p.getGenero() : "",
+                    p.getEdad() > 0 ? p.getEdad() : ""
+                });
+            }
+        });
     }
     
     // Actualiza el contador de registros
     private void actualizarContador() {
-        int total = model.getRowCount();
-        int totalGeneral = controller.contarPacientes();
-        lblTotalRegistros.setText("Mostrando " + total + " de " + totalGeneral + " registros");
+        SwingUtilities.invokeLater(() -> {
+            int total = model.getRowCount();
+            int totalGeneral = controller.contarPacientes();
+            lblTotalRegistros.setText("Mostrando " + total + " de " + totalGeneral + " registros");
+        });
     }
+    
+    // ================================================================
+    // ========== MÉTODOS DE ACCIÓN ==========
+    // ================================================================
     
     // Abre el formulario para crear o editar un paciente
     private void abrirFormularioPaciente(Paciente paciente) {
@@ -446,9 +587,33 @@ public class PanelPacientes extends JPanel {
             JOptionPane.WARNING_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            if (controller.eliminarPaciente(id)) {
-                cargarPacientes();
-            }
+            mostrarProgreso("Eliminando paciente...");
+            
+            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() throws Exception {
+                    // Simular proceso
+                    Thread.sleep(300);
+                    return controller.eliminarPaciente(id);
+                }
+                
+                @Override
+                protected void done() {
+                    try {
+                        if (get()) {
+                            cargarPacientes();
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error al eliminar: " + e.getMessage());
+                        JOptionPane.showMessageDialog(PanelPacientes.this, 
+                            "Error al eliminar: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    } finally {
+                        ocultarProgreso();
+                    }
+                }
+            };
+            worker.execute();
         }
     }
     
@@ -467,6 +632,33 @@ public class PanelPacientes extends JPanel {
         if (paciente != null) {
             mostrarDetallePaciente(paciente);
         }
+    }
+    
+    // ================================================================
+    // ========== MÉTODOS DE UTILIDAD ==========
+    // ================================================================
+    
+    // Crea un botón con estilo consistente
+    private JButton createActionButton(String text, Color color) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btn.setBackground(color);
+        btn.setForeground(Color.WHITE);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(95, 32));
+        
+        btn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(color.brighter());
+            }
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(color);
+            }
+        });
+        
+        return btn;
     }
     
     // Muestra un diálogo con el detalle completo del paciente

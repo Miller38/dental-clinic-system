@@ -64,7 +64,7 @@ public class DialogPaciente extends JDialog {
         
         int row = 0;
         
-        // -------------------------------------------------Título-------------------------------------//
+        // Título
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         JLabel titleLabel = new JLabel(esEdicion ? "Editar Paciente" : " Nuevo Paciente");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
@@ -75,12 +75,11 @@ public class DialogPaciente extends JDialog {
         
         gbc.gridwidth = 1;
         
-        // -------------------------------------NOMBRE ----------------------------------------//
+        // ========== NOMBRE ==========
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Nombre *:"), gbc);
         gbc.gridx = 1;
         txtNombre = createTextField(25);
-        // ----------------------VALIDACIÓN: Solo letras y espacios------------------------//
         txtNombre.addKeyListener(new KeyAdapter() {
             public void keyTyped(KeyEvent e) {
                 char c = e.getKeyChar();
@@ -92,12 +91,11 @@ public class DialogPaciente extends JDialog {
         formPanel.add(txtNombre, gbc);
         row++;
         
-        // -------------------------------------- APELLIDO----------------------------------//
+        // ========== APELLIDO ==========
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Apellido *:"), gbc);
         gbc.gridx = 1;
         txtApellido = createTextField(25);
-        // 🔥 VALIDACIÓN: Solo letras y espacios
         txtApellido.addKeyListener(new KeyAdapter() {
             public void keyTyped(KeyEvent e) {
                 char c = e.getKeyChar();
@@ -109,12 +107,11 @@ public class DialogPaciente extends JDialog {
         formPanel.add(txtApellido, gbc);
         row++;
         
-        //------------------------------------DOCUMENTO-----------------------------------//
+        // ========== DOCUMENTO ==========
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Documento *:"), gbc);
         gbc.gridx = 1;
         txtDocumento = createTextField(15);
-        // 🔥 VALIDACIÓN: Solo números
         aplicarFiltroNumerico(txtDocumento, 15);
         txtDocumento.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { validarDocumento(); }
@@ -124,7 +121,7 @@ public class DialogPaciente extends JDialog {
         formPanel.add(txtDocumento, gbc);
         row++;
         
-        // ------------------Indicador de validación de documento----------------------------//
+        // Indicador de validación de documento
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         lblDocumentoValido = new JLabel("Ingrese el número de documento (7-15 dígitos)");
         lblDocumentoValido.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -133,12 +130,11 @@ public class DialogPaciente extends JDialog {
         row++;
         gbc.gridwidth = 1;
         
-        //---------------------------------TELÉFONO ------------------------------------------//
+        // ========== TELÉFONO ==========
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Teléfono *:"), gbc);
         gbc.gridx = 1;
         txtTelefono = createTextField(10);
-        // 🔥 VALIDACIÓN: Solo números
         aplicarFiltroNumerico(txtTelefono, 10);
         txtTelefono.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             public void insertUpdate(javax.swing.event.DocumentEvent e) { validarTelefono(); }
@@ -148,7 +144,7 @@ public class DialogPaciente extends JDialog {
         formPanel.add(txtTelefono, gbc);
         row++;
         
-        //----------------------- Indicador de validación de teléfono-------------------------//
+        // Indicador de validación de teléfono
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         lblTelefonoValido = new JLabel("Ingrese el número de teléfono (7-10 dígitos)");
         lblTelefonoValido.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -157,7 +153,7 @@ public class DialogPaciente extends JDialog {
         row++;
         gbc.gridwidth = 1;
         
-        // TELÉFONO ALTERNATIVO
+        // ========== TELÉFONO ALTERNATIVO ==========
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Teléfono Alt:"), gbc);
         gbc.gridx = 1;
@@ -387,7 +383,6 @@ public class DialogPaciente extends JDialog {
             }
         });
         
-        // Validación adicional en tiempo real
         field.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
@@ -411,15 +406,6 @@ public class DialogPaciente extends JDialog {
         field.setBorder(BorderFactory.createLineBorder(fieldBorder));
         field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         return field;
-    }
-    
-    private JComboBox<String> createComboBox(String[] items) {
-        JComboBox<String> combo = new JComboBox<>(items);
-        combo.setBackground(fieldBg);
-        combo.setForeground(textLight);
-        combo.setBorder(BorderFactory.createLineBorder(fieldBorder));
-        combo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        return combo;
     }
     
     private JTextArea createTextArea(int rows, int columns) {
@@ -483,217 +469,65 @@ public class DialogPaciente extends JDialog {
             txtEnfermedades.setText(paciente.getEnfermedadesSistema() != null ? paciente.getEnfermedadesSistema() : "");
             txtMedicamentos.setText(paciente.getMedicamentos() != null ? paciente.getMedicamentos() : "");
             
-            // Validar en tiempo real al cargar
             validarDocumento();
             validarTelefono();
         }
     }
     
     private void guardarPaciente() {
-    try {
-        // ===== 1. VALIDAR CAMPOS OBLIGATORIOS =====
-        String nombre = txtNombre.getText().trim();
-        String apellido = txtApellido.getText().trim();
-        String documento = txtDocumento.getText().trim();
-        String telefono = txtTelefono.getText().trim();
-        
-        if (nombre.isEmpty()) {
-            mostrarError("El nombre es obligatorio");
-            txtNombre.requestFocus();
-            return;
-        }
-        
-        if (apellido.isEmpty()) {
-            mostrarError("El apellido es obligatorio");
-            txtApellido.requestFocus();
-            return;
-        }
-        
-        if (documento.isEmpty()) {
-            mostrarError("El documento es obligatorio");
-            txtDocumento.requestFocus();
-            return;
-        }
-        
-        if (telefono.isEmpty()) {
-            mostrarError("El teléfono es obligatorio");
-            txtTelefono.requestFocus();
-            return;
-        }
-        
-        // ===== 2. VALIDAR NOMBRE (solo letras y espacios) =====
-        if (!nombre.matches("[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+")) {
-            mostrarError("El nombre solo debe contener letras y espacios");
-            txtNombre.requestFocus();
-            return;
-        }
-        
-        if (!apellido.matches("[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+")) {
-            mostrarError("El apellido solo debe contener letras y espacios");
-            txtApellido.requestFocus();
-            return;
-        }
-        
-        // ===== 3. VALIDAR DOCUMENTO (solo números) =====
-        if (!documento.matches("\\d+")) {
-            mostrarError("El documento solo debe contener números");
-            txtDocumento.requestFocus();
-            return;
-        }
-        
-        if (documento.length() < 7) {
-            mostrarError("El documento debe tener al menos 7 dígitos");
-            txtDocumento.requestFocus();
-            return;
-        }
-        
-        if (documento.length() > 15) {
-            mostrarError("El documento no puede tener más de 15 dígitos");
-            txtDocumento.requestFocus();
-            return;
-        }
-        
-        // ===== 4. VALIDAR TELÉFONO (solo números) =====
-        if (!telefono.matches("\\d+")) {
-            mostrarError("El teléfono solo debe contener números");
-            txtTelefono.requestFocus();
-            return;
-        }
-        
-        if (telefono.length() < 7 || telefono.length() > 10) {
-            mostrarError("El teléfono debe tener entre 7 y 10 dígitos");
-            txtTelefono.requestFocus();
-            return;
-        }
-        
-        // ===== 5. VALIDAR TELÉFONO ALTERNATIVO (si se proporciona) =====
-        String telefonoAlt = txtTelefonoAlt.getText().trim();
-        if (!telefonoAlt.isEmpty()) {
-            if (!telefonoAlt.matches("\\d+")) {
-                mostrarError("El teléfono alternativo solo debe contener números");
-                txtTelefonoAlt.requestFocus();
-                return;
-            }
-            if (telefonoAlt.length() < 7 || telefonoAlt.length() > 10) {
-                mostrarError("El teléfono alternativo debe tener entre 7 y 10 dígitos");
-                txtTelefonoAlt.requestFocus();
-                return;
-            }
-        }
-        
-        // ===== 6. VALIDAR TELÉFONO EMERGENCIA (si se proporciona) =====
-        String telEmergencia = txtTelefonoEmergencia.getText().trim();
-        if (!telEmergencia.isEmpty()) {
-            if (!telEmergencia.matches("\\d+")) {
-                mostrarError("El teléfono de emergencia solo debe contener números");
-                txtTelefonoEmergencia.requestFocus();
-                return;
-            }
-            if (telEmergencia.length() < 7 || telEmergencia.length() > 10) {
-                mostrarError("El teléfono de emergencia debe tener entre 7 y 10 dígitos");
-                txtTelefonoEmergencia.requestFocus();
-                return;
-            }
-        }
-        
-        // ===== 7. VALIDAR EMAIL (si se proporciona) =====
-        String email = txtEmail.getText().trim();
-        if (!email.isEmpty()) {
-            if (!validarEmail(email)) {
-                mostrarError("El email no es válido. Ejemplo: usuario@dominio.com");
-                txtEmail.requestFocus();
-                return;
-            }
-        }
-        
-        // ===== 8. VALIDAR EDAD =====
         try {
-            String edadStr = txtEdad.getText().trim();
-            if (!edadStr.isEmpty()) {
-                int edad = Integer.parseInt(edadStr);
-                if (edad < 0 || edad > 150) {
-                    mostrarError("La edad debe estar entre 0 y 150 años");
-                    txtEdad.requestFocus();
-                    return;
-                }
+            // Construir el paciente desde el formulario
+            Paciente nuevoPaciente = construirPacienteDesdeFormulario();
+            
+            // Delegar toda la validación al Controller
+            if (controller.guardarPaciente(nuevoPaciente)) {
+                guardado = true;
+                dispose();
             }
-        } catch (NumberFormatException e) {
-            mostrarError("Ingrese una edad válida (número)");
-            txtEdad.requestFocus();
-            return;
+            
+        } catch (Exception e) {
+            System.err.println("Error al guardar paciente: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, 
+                "Error al guardar: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
         }
-        
-        // ===== 9. VALIDAR DOCUMENTO ÚNICO (con excepción para edición) =====
-        Paciente existente = controller.buscarPorDocumento(documento);
-        // Si existe un paciente con el mismo documento Y no es el que estamos editando
-        if (existente != null) {
-            // Si estamos editando y el ID coincide, permitir
-            if (paciente != null && existente.getId() == paciente.getId()) {
-                // Es el mismo paciente, permitir
-            } else {
-                mostrarError("Ya existe un paciente con este número de documento");
-                txtDocumento.requestFocus();
-                return;
-            }
-        }
-        
-        // ===== 10. CREAR PACIENTE =====
-        Paciente nuevoPaciente = new Paciente();
-        nuevoPaciente.setId(paciente != null ? paciente.getId() : 0);
-        nuevoPaciente.setNombre(capitalizar(nombre));
-        nuevoPaciente.setApellido(capitalizar(apellido));
-        nuevoPaciente.setNumeroDocumento(documento);
-        nuevoPaciente.setTelefono(telefono);
-        nuevoPaciente.setTelefonoAlternativo(telefonoAlt);
-        nuevoPaciente.setEmail(email);
-        nuevoPaciente.setDireccion(txtDireccion.getText().trim());
-        nuevoPaciente.setOcupacion(txtOcupacion.getText().trim());
-        nuevoPaciente.setContactoEmergenciaNombre(txtContactoEmergencia.getText().trim());
-        nuevoPaciente.setContactoEmergenciaTelefono(telEmergencia);
-        nuevoPaciente.setGenero((String) cbGenero.getSelectedItem());
-        nuevoPaciente.setEstadoCivil((String) cbEstadoCivil.getSelectedItem());
-        
-        try {
-            String edadStr = txtEdad.getText().trim();
-            nuevoPaciente.setEdad(edadStr.isEmpty() ? 0 : Integer.parseInt(edadStr));
-        } catch (NumberFormatException e) {
-            nuevoPaciente.setEdad(0);
-        }
-        
-        nuevoPaciente.setAlergias(txtAlergias.getText().trim());
-        nuevoPaciente.setEnfermedadesSistema(txtEnfermedades.getText().trim());
-        nuevoPaciente.setMedicamentos(txtMedicamentos.getText().trim());
-        nuevoPaciente.setEstado(1);
-        
-        // ===== 11. GUARDAR =====
-        if (controller.guardarPaciente(nuevoPaciente)) {
-            guardado = true;
-            dispose();
-        }
-        
-    } catch (Exception e) {
-        System.err.println("Error al guardar paciente: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, 
-            "Error al guardar: " + e.getMessage(),
-            "Error", JOptionPane.ERROR_MESSAGE);
     }
-}
+    
+    private Paciente construirPacienteDesdeFormulario() {
+        Paciente p = new Paciente();
+        p.setId(paciente != null ? paciente.getId() : 0);
+        p.setNombre(capitalizar(txtNombre.getText().trim()));
+        p.setApellido(capitalizar(txtApellido.getText().trim()));
+        p.setNumeroDocumento(txtDocumento.getText().trim());
+        p.setTelefono(txtTelefono.getText().trim());
+        p.setTelefonoAlternativo(txtTelefonoAlt.getText().trim());
+        p.setEmail(txtEmail.getText().trim());
+        p.setDireccion(txtDireccion.getText().trim());
+        p.setOcupacion(txtOcupacion.getText().trim());
+        p.setContactoEmergenciaNombre(txtContactoEmergencia.getText().trim());
+        p.setContactoEmergenciaTelefono(txtTelefonoEmergencia.getText().trim());
+        p.setGenero((String) cbGenero.getSelectedItem());
+        p.setEstadoCivil((String) cbEstadoCivil.getSelectedItem());
+        
+        try {
+            String edadStr = txtEdad.getText().trim();
+            p.setEdad(edadStr.isEmpty() ? 0 : Integer.parseInt(edadStr));
+        } catch (NumberFormatException e) {
+            p.setEdad(0);
+        }
+        
+        p.setAlergias(txtAlergias.getText().trim());
+        p.setEnfermedadesSistema(txtEnfermedades.getText().trim());
+        p.setMedicamentos(txtMedicamentos.getText().trim());
+        p.setEstado(1);
+        
+        return p;
+    }
     
     // ================================================================
     // ========== MÉTODOS DE UTILIDAD ==========
     // ================================================================
-    
-    private void mostrarError(String mensaje) {
-        JOptionPane.showMessageDialog(this, 
-            "❌ " + mensaje,
-            "Error de validación", 
-            JOptionPane.WARNING_MESSAGE);
-    }
-    
-    private boolean validarEmail(String email) {
-        return email.matches("^[A-Za-z0-9+_.-]+@(.+)$");
-    }
     
     private String capitalizar(String texto) {
         if (texto == null || texto.isEmpty()) return texto;

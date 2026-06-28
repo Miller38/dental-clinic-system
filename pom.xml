@@ -53,6 +53,12 @@
             <version>5.2.3</version>
         </dependency>
 
+        <!-- OpenCSV para CSV -->
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.8</version>
+        </dependency>
 
         <!-- JFreeChart para gráficos y dashboards -->
         <dependency>
@@ -126,6 +132,12 @@
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
             <version>3.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itextpdf</artifactId>
+            <version>5.5.13.3</version>
+            <type>jar</type>
         </dependency>
     </dependencies>
     

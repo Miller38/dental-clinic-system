@@ -28,6 +28,7 @@ public class DialogCita extends JDialog {
     private Cita cita;
     private boolean guardado = false;
     private boolean esEdicion = false;
+    private boolean datosCargados = false;
     
     private JComboBox<String> cbPaciente;
     private JComboBox<String> cbOdontologo;
@@ -40,6 +41,14 @@ public class DialogCita extends JDialog {
     private JButton btnGuardar, btnCancelar;
     private JLabel lblPacienteInfo, lblFechaInfo;
     
+    private JProgressBar progressBar;
+    private JLabel lblEstado;
+    private JPanel progressPanel;
+    
+    private JLabel lblDisponibilidad;
+    private Timer timerValidacion;
+    private boolean inicializado = false;
+    
     private Color darkBg = new Color(30, 30, 35);
     private Color darkCard = new Color(40, 40, 45);
     private Color textLight = new Color(220, 220, 230);
@@ -47,21 +56,38 @@ public class DialogCita extends JDialog {
     private Color accentGreen = new Color(60, 180, 110);
     private Color accentRed = new Color(210, 80, 80);
     private Color accentBlue = new Color(70, 130, 200);
+    private Color accentOrange = new Color(230, 160, 50);
     private Color fieldBg = new Color(50, 50, 55);
     private Color fieldBorder = new Color(60, 60, 65);
     
-    public DialogCita(JFrame parent, boolean edicion) {
+    public DialogCita(JFrame parent, boolean edicion, Cita citaParaEditar) {
         super(parent, edicion ? "Editar Cita" : "Nueva Cita", true);
         this.citaController = new CitaController();
         this.pacienteController = new PacienteController();
         this.usuariosController = new UsuariosController();
         this.servicioController = new ServicioController();
         this.esEdicion = edicion;
+        this.cita = citaParaEditar;
+        
+        System.out.println("📌 [DEBUG] Constructor DialogCita - Cita para editar: " + (citaParaEditar != null ? citaParaEditar.getId() : "null"));
+        if (citaParaEditar != null) {
+            System.out.println("   Paciente: " + citaParaEditar.getPacienteNombre() + " (ID: " + citaParaEditar.getPacienteId() + ")");
+            System.out.println("   Odontólogo: " + citaParaEditar.getOdontologoNombre() + " (ID: " + citaParaEditar.getOdontologoId() + ")");
+            System.out.println("   Servicio: " + citaParaEditar.getServicioNombre() + " (ID: " + citaParaEditar.getServicioId() + ")");
+        }
+        
+        timerValidacion = new Timer(500, e -> realizarValidacionDisponibilidad());
+        timerValidacion.setRepeats(false);
+        
         initComponents();
-        setSize(580, 680);
+        setSize(600, 750);
         setLocationRelativeTo(parent);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setModal(true);
+        
+        inicializado = true;
+        
+        cargarTodosLosDatos();
     }
     
     private void initComponents() {
@@ -79,18 +105,17 @@ public class DialogCita extends JDialog {
         
         int row = 0;
         
-        // --------------------------------------Título-----------------------------------//
+        // Título
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
-        JLabel titleLabel = new JLabel(esEdicion ? "Editar Cita" : "Nueva Cita");
+        JLabel titleLabel = new JLabel(esEdicion ? "Editar Cita" : " Nueva Cita");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(textLight);
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         formPanel.add(titleLabel, gbc);
         row++;
-        
         gbc.gridwidth = 1;
         
-        //-----------------------------------PACIENTE ---------------------------------//
+        // Paciente
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Paciente *:"), gbc);
         gbc.gridx = 1;
@@ -99,12 +124,16 @@ public class DialogCita extends JDialog {
         cbPaciente.setForeground(textLight);
         cbPaciente.setBorder(BorderFactory.createLineBorder(fieldBorder));
         cbPaciente.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cargarPacientes();
-        cbPaciente.addActionListener(e -> mostrarInfoPaciente());
+        cbPaciente.addActionListener(e -> {
+            mostrarInfoPaciente();
+            if (inicializado) {
+                validarDisponibilidadEnTiempoReal();
+            }
+        });
         formPanel.add(cbPaciente, gbc);
         row++;
         
-        // ----------------------INFORMACIÓN DEL PACIENTE ----------------------//
+        // Información del paciente
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         lblPacienteInfo = new JLabel(" ");
         lblPacienteInfo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
@@ -119,7 +148,7 @@ public class DialogCita extends JDialog {
         row++;
         gbc.gridwidth = 1;
         
-        //----------------------------ODONTÓLOGO---------------------------------//
+        // Odontólogo
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Odontólogo *:"), gbc);
         gbc.gridx = 1;
@@ -128,12 +157,16 @@ public class DialogCita extends JDialog {
         cbOdontologo.setForeground(textLight);
         cbOdontologo.setBorder(BorderFactory.createLineBorder(fieldBorder));
         cbOdontologo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cargarOdontologos();
-        cbOdontologo.addActionListener(e -> actualizarHorasDisponibles());
+        cbOdontologo.addActionListener(e -> {
+            actualizarHorasDisponibles();
+            if (inicializado) {
+                validarDisponibilidadEnTiempoReal();
+            }
+        });
         formPanel.add(cbOdontologo, gbc);
         row++;
         
-        // --------------------------------SERVICIO ---------------------------------//
+        // Servicio
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Servicio *:"), gbc);
         gbc.gridx = 1;
@@ -142,18 +175,23 @@ public class DialogCita extends JDialog {
         cbServicio.setForeground(textLight);
         cbServicio.setBorder(BorderFactory.createLineBorder(fieldBorder));
         cbServicio.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cargarServicios();
-        cbServicio.addActionListener(e -> actualizarDuracion());
+        cbServicio.addActionListener(e -> {
+            actualizarDuracion();
+            if (inicializado) {
+                validarDisponibilidadEnTiempoReal();
+            }
+        });
         formPanel.add(cbServicio, gbc);
         row++;
         
-        // ---------------------------------FECHA ---------------------------------//
+        // Fecha
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Fecha *:"), gbc);
         gbc.gridx = 1;
         
         DatePickerSettings settings = new DatePickerSettings();
         settings.setFormatForDatesCommonEra(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        settings.setAllowEmptyDates(false);
         
         dpFecha = new DatePicker(settings);
         dpFecha.setDate(LocalDate.now());
@@ -161,6 +199,9 @@ public class DialogCita extends JDialog {
         dpFecha.addDateChangeListener(e -> {
             actualizarHorasDisponibles();
             validarFechaSeleccionada();
+            if (inicializado) {
+                validarDisponibilidadEnTiempoReal();
+            }
         });
         
         dpFecha.getComponentDateTextField().setBackground(fieldBg);
@@ -176,7 +217,7 @@ public class DialogCita extends JDialog {
         formPanel.add(dpFecha, gbc);
         row++;
         
-        //------------------------------------- Información de fecha--------------------------------//
+        // Información de fecha
         gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
         lblFechaInfo = new JLabel("Seleccione una fecha (puede ser hoy o futuro)");
         lblFechaInfo.setFont(new Font("Segoe UI", Font.PLAIN, 10));
@@ -185,7 +226,7 @@ public class DialogCita extends JDialog {
         row++;
         gbc.gridwidth = 1;
         
-        // -------------------------------------------HORA --------------------------------------//
+        // Hora
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Hora *:"), gbc);
         gbc.gridx = 1;
@@ -194,11 +235,25 @@ public class DialogCita extends JDialog {
         cbHora.setForeground(textLight);
         cbHora.setBorder(BorderFactory.createLineBorder(fieldBorder));
         cbHora.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cbHora.addActionListener(e -> {
+            if (inicializado) {
+                validarDisponibilidadEnTiempoReal();
+            }
+        });
         cargarHorasPorDefecto();
         formPanel.add(cbHora, gbc);
         row++;
         
-        // ------------------------------------DURACIÓN ---------------------------------------//
+        // Indicador de disponibilidad
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        lblDisponibilidad = new JLabel(" ");
+        lblDisponibilidad.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lblDisponibilidad.setHorizontalAlignment(SwingConstants.CENTER);
+        formPanel.add(lblDisponibilidad, gbc);
+        row++;
+        gbc.gridwidth = 1;
+        
+        // Duración
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Duración (min):"), gbc);
         gbc.gridx = 1;
@@ -208,15 +263,36 @@ public class DialogCita extends JDialog {
         txtDuracion.setForeground(textLight);
         txtDuracion.setBorder(BorderFactory.createLineBorder(fieldBorder));
         txtDuracion.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        txtDuracion.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyReleased(java.awt.event.KeyEvent evt) {
+        txtDuracion.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { 
                 validarDuracion();
+                actualizarHorasDisponibles();
+                if (inicializado) {
+                    validarDisponibilidadEnTiempoReal();
+                }
+            }
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { 
+                validarDuracion();
+                actualizarHorasDisponibles();
+                if (inicializado) {
+                    validarDisponibilidadEnTiempoReal();
+                }
+            }
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { 
+                validarDuracion();
+                actualizarHorasDisponibles();
+                if (inicializado) {
+                    validarDisponibilidadEnTiempoReal();
+                }
             }
         });
         formPanel.add(txtDuracion, gbc);
         row++;
         
-        // -------------------------------------ESTADO ------------------------------------//
+        // Estado (solo en edición)
         if (esEdicion) {
             gbc.gridx = 0; gbc.gridy = row;
             formPanel.add(createLabel("Estado:"), gbc);
@@ -230,7 +306,7 @@ public class DialogCita extends JDialog {
             row++;
         }
         
-        // ---------------------------------------NOTA -------------------------------------//
+        // Nota
         gbc.gridx = 0; gbc.gridy = row;
         formPanel.add(createLabel("Nota:"), gbc);
         gbc.gridx = 1;
@@ -254,7 +330,26 @@ public class DialogCita extends JDialog {
         scrollForm.getViewport().setBackground(darkBg);
         scrollForm.setPreferredSize(new Dimension(520, 550));
         
-        // -------------------------------------BOTONES --------------------------------------//
+        // Panel de progreso
+        progressPanel = new JPanel(new BorderLayout(10, 5));
+        progressPanel.setBackground(darkBg);
+        progressPanel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        progressPanel.setVisible(false);
+        
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setPreferredSize(new Dimension(0, 18));
+        progressBar.setBackground(new Color(50, 50, 55));
+        progressBar.setForeground(accentBlue);
+        progressBar.setBorderPainted(false);
+        progressPanel.add(progressBar, BorderLayout.CENTER);
+        
+        lblEstado = new JLabel("Cargando datos...");
+        lblEstado.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblEstado.setForeground(accentBlue);
+        progressPanel.add(lblEstado, BorderLayout.SOUTH);
+        
+        // Botones
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         btnPanel.setBackground(darkBg);
         
@@ -266,13 +361,368 @@ public class DialogCita extends JDialog {
         btnCancelar.addActionListener(e -> dispose());
         btnPanel.add(btnCancelar);
         
-        mainPanel.add(scrollForm, BorderLayout.CENTER);
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBackground(darkBg);
+        centerPanel.add(scrollForm, BorderLayout.CENTER);
+        centerPanel.add(progressPanel, BorderLayout.SOUTH);
+        
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
         mainPanel.add(btnPanel, BorderLayout.SOUTH);
         
         add(mainPanel);
+        
+        validarFechaSeleccionada();
     }
     
-    // ------------------------------MÉTODOS AUXILIARES --------------------------------//
+    // ======================= CARGA DE DATOS =======================
+    
+    private void cargarTodosLosDatos() {
+        System.out.println("🔄 [DEBUG] cargarTodosLosDatos() - INICIO");
+        System.out.println("📌 Cita para cargar: " + (cita != null ? cita.getId() : "null"));
+        
+        mostrarProgreso("Cargando datos...");
+        
+        SwingWorker<Void, Integer> worker = new SwingWorker<Void, Integer>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                System.out.println("🔄 [DEBUG] SwingWorker doInBackground - INICIO");
+                
+                // 1. Cargar pacientes
+                System.out.println("📋 Cargando pacientes...");
+                List<Paciente> pacientes = pacienteController.listarTodos();
+                SwingUtilities.invokeLater(() -> {
+                    cbPaciente.removeAllItems();
+                    cbPaciente.addItem("");
+                    if (pacientes != null) {
+                        for (Paciente p : pacientes) {
+                            cbPaciente.addItem(p.getNombreCompleto());
+                        }
+                        System.out.println("✅ Pacientes cargados: " + pacientes.size());
+                    } else {
+                        System.out.println("❌ No se cargaron pacientes");
+                    }
+                    System.out.println("📊 Items en cbPaciente: " + cbPaciente.getItemCount());
+                });
+                Thread.sleep(200);
+                publish(25);
+                
+                // 2. Cargar odontólogos
+                System.out.println("📋 Cargando odontólogos...");
+                List<Usuario> odontologos = usuariosController.listarOdontologos();
+                SwingUtilities.invokeLater(() -> {
+                    cbOdontologo.removeAllItems();
+                    cbOdontologo.addItem("");
+                    if (odontologos != null) {
+                        for (Usuario u : odontologos) {
+                            cbOdontologo.addItem(u.getNombre());
+                        }
+                        System.out.println("✅ Odontólogos cargados: " + odontologos.size());
+                    } else {
+                        System.out.println("❌ No se cargaron odontólogos");
+                    }
+                    System.out.println("📊 Items en cbOdontologo: " + cbOdontologo.getItemCount());
+                });
+                Thread.sleep(200);
+                publish(50);
+                
+                // 3. Cargar servicios
+                System.out.println("📋 Cargando servicios...");
+                List<Servicio> servicios = servicioController.listarActivos();
+                SwingUtilities.invokeLater(() -> {
+                    cbServicio.removeAllItems();
+                    cbServicio.addItem("");
+                    if (servicios != null && !servicios.isEmpty()) {
+                        for (Servicio s : servicios) {
+                            cbServicio.addItem(s.getNombre());
+                        }
+                        System.out.println("✅ Servicios cargados: " + servicios.size());
+                    } else {
+                        System.out.println("❌ No se cargaron servicios");
+                        cbServicio.addItem("No hay servicios disponibles");
+                    }
+                    System.out.println("📊 Items en cbServicio: " + cbServicio.getItemCount());
+                });
+                Thread.sleep(200);
+                publish(100);
+                
+                System.out.println("🔄 [DEBUG] SwingWorker doInBackground - FIN");
+                return null;
+            }
+            
+            @Override
+            protected void process(java.util.List<Integer> chunks) {
+                int progress = chunks.get(chunks.size() - 1);
+                progressBar.setIndeterminate(false);
+                progressBar.setValue(progress);
+                lblEstado.setText("Cargando datos... " + progress + "%");
+            }
+            
+            @Override
+            protected void done() {
+                System.out.println("🔄 [DEBUG] SwingWorker done() - INICIO");
+                ocultarProgreso();
+                datosCargados = true;
+                
+                System.out.println("📊 Estado final de combos:");
+                System.out.println("   cbPaciente items: " + cbPaciente.getItemCount());
+                System.out.println("   cbOdontologo items: " + cbOdontologo.getItemCount());
+                System.out.println("   cbServicio items: " + cbServicio.getItemCount());
+                
+                // ===== AHORA CARGAR LA CITA =====
+                if (cita != null && cita.getId() > 0) {
+                    System.out.println("🔄 [DEBUG] Cargando cita para editar...");
+                    System.out.println("   ID: " + cita.getId());
+                    System.out.println("   Paciente: " + cita.getPacienteNombre());
+                    System.out.println("   Odontólogo: " + cita.getOdontologoNombre());
+                    System.out.println("   Servicio: " + cita.getServicioNombre());
+                    cargarCitaEnFormulario(cita);
+                } else {
+                    System.out.println("📅 [DEBUG] No hay cita para editar");
+                    limpiarCampos();
+                }
+                
+                System.out.println("🔄 [DEBUG] SwingWorker done() - FIN");
+            }
+        };
+        worker.execute();
+    }
+    
+    private void cargarCitaEnFormulario(Cita cita) {
+        System.out.println("========== [DEBUG] cargarCitaEnFormulario() ==========");
+        System.out.println("Cita ID: " + cita.getId());
+        System.out.println("Paciente: " + cita.getPacienteNombre() + " (ID: " + cita.getPacienteId() + ")");
+        System.out.println("Odontólogo: " + cita.getOdontologoNombre() + " (ID: " + cita.getOdontologoId() + ")");
+        System.out.println("Servicio: " + cita.getServicioNombre() + " (ID: " + cita.getServicioId() + ")");
+        System.out.println("Fecha: " + cita.getFecha());
+        System.out.println("Hora: " + cita.getHora());
+        System.out.println("Estado: " + cita.getEstado());
+        System.out.println("====================================================");
+        
+        // ===== SELECCIONAR PACIENTE =====
+        if (cita.getPacienteNombre() != null && !cita.getPacienteNombre().isEmpty()) {
+            System.out.println("🔍 Buscando paciente: '" + cita.getPacienteNombre() + "'");
+            boolean encontrado = false;
+            for (int i = 0; i < cbPaciente.getItemCount(); i++) {
+                String item = cbPaciente.getItemAt(i);
+                if (item != null && item.equals(cita.getPacienteNombre())) {
+                    cbPaciente.setSelectedIndex(i);
+                    encontrado = true;
+                    System.out.println("✅ Paciente SELECCIONADO en índice: " + i);
+                    break;
+                }
+            }
+            if (!encontrado) {
+                System.err.println("❌ Paciente NO encontrado: " + cita.getPacienteNombre());
+                Paciente p = pacienteController.buscarPorId(cita.getPacienteId());
+                if (p != null) {
+                    System.out.println("   Agregando paciente al combo: " + p.getNombreCompleto());
+                    cbPaciente.addItem(p.getNombreCompleto());
+                    cbPaciente.setSelectedItem(p.getNombreCompleto());
+                }
+            }
+        }
+        
+        // ===== SELECCIONAR ODONTÓLOGO =====
+        if (cita.getOdontologoNombre() != null && !cita.getOdontologoNombre().isEmpty()) {
+            System.out.println("🔍 Buscando odontólogo: '" + cita.getOdontologoNombre() + "'");
+            boolean encontrado = false;
+            for (int i = 0; i < cbOdontologo.getItemCount(); i++) {
+                String item = cbOdontologo.getItemAt(i);
+                if (item != null && item.equals(cita.getOdontologoNombre())) {
+                    cbOdontologo.setSelectedIndex(i);
+                    encontrado = true;
+                    System.out.println("✅ Odontólogo SELECCIONADO en índice: " + i);
+                    break;
+                }
+            }
+            if (!encontrado) {
+                System.err.println("❌ Odontólogo NO encontrado: " + cita.getOdontologoNombre());
+                Usuario u = usuariosController.buscarPorId(cita.getOdontologoId());
+                if (u != null) {
+                    System.out.println("   Agregando odontólogo al combo: " + u.getNombre());
+                    cbOdontologo.addItem(u.getNombre());
+                    cbOdontologo.setSelectedItem(u.getNombre());
+                }
+            }
+        }
+        
+        // ===== SELECCIONAR SERVICIO =====
+        if (cita.getServicioNombre() != null && !cita.getServicioNombre().isEmpty()) {
+            System.out.println("🔍 Buscando servicio: '" + cita.getServicioNombre() + "'");
+            boolean encontrado = false;
+            for (int i = 0; i < cbServicio.getItemCount(); i++) {
+                String item = cbServicio.getItemAt(i);
+                if (item != null && item.equals(cita.getServicioNombre())) {
+                    cbServicio.setSelectedIndex(i);
+                    encontrado = true;
+                    System.out.println("✅ Servicio SELECCIONADO en índice: " + i);
+                    break;
+                }
+            }
+            if (!encontrado) {
+                System.err.println("❌ Servicio NO encontrado: " + cita.getServicioNombre());
+                Servicio s = servicioController.buscarPorId(cita.getServicioId());
+                if (s != null) {
+                    System.out.println("   Agregando servicio al combo: " + s.getNombre());
+                    cbServicio.addItem(s.getNombre());
+                    cbServicio.setSelectedItem(s.getNombre());
+                }
+            }
+        }
+        
+        // ===== FECHA =====
+        try {
+            if (cita.getFecha() != null && !cita.getFecha().isEmpty()) {
+                dpFecha.setDate(LocalDate.parse(cita.getFecha()));
+                System.out.println("✅ Fecha seleccionada: " + cita.getFecha());
+            }
+        } catch (Exception e) {
+            System.err.println("Error en fecha: " + e.getMessage());
+            dpFecha.setDate(LocalDate.now());
+        }
+        
+        // ===== HORA =====
+        actualizarHorasDisponibles();
+        if (cita.getHora() != null && !cita.getHora().isEmpty()) {
+            boolean encontrado = false;
+            for (int i = 0; i < cbHora.getItemCount(); i++) {
+                String item = cbHora.getItemAt(i);
+                if (item != null && item.equals(cita.getHora())) {
+                    cbHora.setSelectedIndex(i);
+                    encontrado = true;
+                    System.out.println("✅ Hora seleccionada: " + cita.getHora());
+                    break;
+                }
+            }
+            if (!encontrado) {
+                System.out.println("⚠️ Hora no encontrada, agregando: " + cita.getHora());
+                cbHora.addItem(cita.getHora());
+                cbHora.setSelectedItem(cita.getHora());
+            }
+        }
+        
+        // ===== DURACIÓN =====
+        txtDuracion.setText(String.valueOf(cita.getDuracion() > 0 ? cita.getDuracion() : 30));
+        
+        // ===== NOTA =====
+        txtNota.setText(cita.getNota() != null ? cita.getNota() : "");
+        
+        // ===== ESTADO =====
+        if (esEdicion && cbEstado != null && cita.getEstado() != null) {
+            cbEstado.setSelectedItem(cita.getEstado());
+            System.out.println("✅ Estado seleccionado: " + cita.getEstado());
+        }
+        
+        mostrarInfoPaciente();
+        validarFechaSeleccionada();
+        
+        // Validar disponibilidad después de cargar todo
+        SwingUtilities.invokeLater(() -> {
+            validarDisponibilidadEnTiempoReal();
+        });
+        
+        System.out.println("========== [DEBUG] FIN cargarCitaEnFormulario() ==========");
+    }
+    
+    // ======================= MÉTODOS DE PROGRESO =======================
+    
+    private void mostrarProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            progressPanel.setVisible(true);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText(mensaje);
+            setControlesEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        });
+    }
+    
+    private void ocultarProgreso() {
+        SwingUtilities.invokeLater(() -> {
+            progressPanel.setVisible(false);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText("");
+            setControlesEnabled(true);
+            setCursor(Cursor.getDefaultCursor());
+        });
+    }
+    
+    private void setControlesEnabled(boolean enabled) {
+        cbPaciente.setEnabled(enabled);
+        cbOdontologo.setEnabled(enabled);
+        cbServicio.setEnabled(enabled);
+        dpFecha.setEnabled(enabled);
+        cbHora.setEnabled(enabled);
+        txtDuracion.setEnabled(enabled);
+        txtNota.setEnabled(enabled);
+        btnGuardar.setEnabled(enabled);
+        if (cbEstado != null) {
+            cbEstado.setEnabled(enabled);
+        }
+    }
+    
+    // ======================= VALIDACIÓN EN TIEMPO REAL =======================
+    
+    private void validarDisponibilidadEnTiempoReal() {
+        if (timerValidacion != null) {
+            timerValidacion.restart();
+        }
+    }
+    
+    private void realizarValidacionDisponibilidad() {
+        String hora = (String) cbHora.getSelectedItem();
+        if (hora == null || hora.isEmpty()) {
+            lblDisponibilidad.setText("⏳ Seleccione una hora");
+            lblDisponibilidad.setForeground(textGray);
+            cbHora.setBorder(BorderFactory.createLineBorder(fieldBorder));
+            return;
+        }
+        
+        LocalDate fecha = dpFecha.getDate();
+        if (fecha == null) {
+            lblDisponibilidad.setText("Seleccione una fecha");
+            lblDisponibilidad.setForeground(textGray);
+            return;
+        }
+        
+        int odontologoId = getSelectedOdontologoId();
+        if (odontologoId <= 0) {
+            lblDisponibilidad.setText("Seleccione un odontólogo");
+            lblDisponibilidad.setForeground(textGray);
+            return;
+        }
+        
+        try {
+            int duracion = Integer.parseInt(txtDuracion.getText().trim());
+            
+            boolean disponible = citaController.tieneDisponibilidad(odontologoId, fecha.toString(), hora, duracion);
+            boolean tieneAtencion = citaController.tieneAtencion(fecha.toString());
+            
+            if (!tieneAtencion) {
+                lblDisponibilidad.setText("No hay atención en esta fecha");
+                lblDisponibilidad.setForeground(accentRed);
+                cbHora.setBorder(BorderFactory.createLineBorder(accentRed, 2));
+                return;
+            }
+            
+            if (disponible) {
+                lblDisponibilidad.setText("Horario disponible");
+                lblDisponibilidad.setForeground(accentGreen);
+                cbHora.setBorder(BorderFactory.createLineBorder(accentGreen, 2));
+            } else {
+                lblDisponibilidad.setText("Horario ocupado");
+                lblDisponibilidad.setForeground(accentRed);
+                cbHora.setBorder(BorderFactory.createLineBorder(accentRed, 2));
+            }
+            
+        } catch (NumberFormatException e) {
+            lblDisponibilidad.setText("Duración inválida");
+            lblDisponibilidad.setForeground(accentRed);
+        } catch (Exception e) {
+            System.err.println("Error en validación: " + e.getMessage());
+        }
+    }
+    
+    // ========== MÉTODOS AUXILIARES ==========
     
     private JLabel createLabel(String text) {
         JLabel label = new JLabel(text);
@@ -295,7 +745,7 @@ public class DialogCita extends JDialog {
     
     private void cargarHorasPorDefecto() {
         cbHora.removeAllItems();
-        cbHora.addItem("");  // Opción vacía para nueva cita
+        cbHora.addItem("");
         String[] horasDefault = {"08:00", "08:30", "09:00", "09:30", "10:00", "10:30", 
                                  "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
                                  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"};
@@ -304,57 +754,6 @@ public class DialogCita extends JDialog {
         }
     }
     
-    private void cargarPacientes() {
-        cbPaciente.removeAllItems();
-        cbPaciente.addItem("");  // Opción vacía para nueva cita
-        List<Paciente> pacientes = pacienteController.listarTodos();
-        if (pacientes != null) {
-            for (Paciente p : pacientes) {
-                cbPaciente.addItem(p.getNombreCompleto());
-            }
-        }
-    }
-    
-    private void cargarOdontologos() {
-        cbOdontologo.removeAllItems();
-        cbOdontologo.addItem("");  // Opción vacía para nueva cita
-        List<Usuario> odontologos = usuariosController.listarOdontologos();
-        if (odontologos != null) {
-            for (Usuario u : odontologos) {
-                cbOdontologo.addItem(u.getNombre());
-            }
-        }
-    }
-    
-    private void cargarServicios() {
-        cbServicio.removeAllItems();
-        cbServicio.addItem("");  // Opción vacía para nueva cita
-        List<Servicio> servicios = servicioController.listarActivos();
-        
-        if (servicios != null && !servicios.isEmpty()) {
-            for (Servicio s : servicios) {
-                cbServicio.addItem(s.getNombre());
-            }
-        } else {
-            cbServicio.addItem("No hay servicios disponibles");
-        }
-    }
-    
-    private int getSelectedServicioId() {
-        String nombreServicio = (String) cbServicio.getSelectedItem();
-        if (nombreServicio != null && !nombreServicio.isEmpty() && !nombreServicio.equals("No hay servicios disponibles")) {
-            List<Servicio> servicios = servicioController.listarActivos();
-            if (servicios != null) {
-                for (Servicio s : servicios) {
-                    if (s.getNombre().equals(nombreServicio)) {
-                        return s.getId();
-                    }
-                }
-            }
-        }
-        return -1;
-    }
-    //-----------------------------------------Mostrar info paciente ----------------------------------//
     private void mostrarInfoPaciente() {
         String seleccion = (String) cbPaciente.getSelectedItem();
         if (seleccion != null && !seleccion.isEmpty()) {
@@ -364,7 +763,7 @@ public class DialogCita extends JDialog {
                     if (p.getNombreCompleto().equals(seleccion)) {
                         String telefono = p.getTelefono() != null ? p.getTelefono() : "Sin teléfono";
                         String email = p.getEmail() != null ? p.getEmail() : "Sin email";
-                        lblPacienteInfo.setText(" " + telefono + "  |   " + email);
+                        lblPacienteInfo.setText("📱 " + telefono + "  |  ✉️ " + email);
                         return;
                     }
                 }
@@ -373,7 +772,6 @@ public class DialogCita extends JDialog {
         lblPacienteInfo.setText(" ");
     }
     
-    //----------------------------------------Actualizar horarios disponibles------------------------//
     private void actualizarHorasDisponibles() {
         cbHora.removeAllItems();
         LocalDate fecha = dpFecha.getDate();
@@ -391,14 +789,18 @@ public class DialogCita extends JDialog {
             List<String> horas = citaController.getHorasDisponibles(odontologoId, fechaStr, duracion);
             
             if (horas != null && !horas.isEmpty()) {
-                cbHora.addItem("");  // Opción vacía
+                cbHora.addItem("");
                 for (String hora : horas) {
                     cbHora.addItem(hora);
                 }
                 cbHora.setSelectedIndex(-1);
+                lblDisponibilidad.setText(" " + horas.size() + " horarios disponibles");
+                lblDisponibilidad.setForeground(accentGreen);
             } else {
                 cargarHorasPorDefecto();
                 cbHora.setSelectedIndex(-1);
+                lblDisponibilidad.setText("No hay horarios disponibles para este día");
+                lblDisponibilidad.setForeground(accentRed);
             }
         } catch (Exception e) {
             cargarHorasPorDefecto();
@@ -406,7 +808,6 @@ public class DialogCita extends JDialog {
         }
     }
     
-    //--------------------------------------Actualizar Duracion------------------------------------//
     private void actualizarDuracion() {
         String nombreServicio = (String) cbServicio.getSelectedItem();
         if (nombreServicio != null && !nombreServicio.isEmpty() && !nombreServicio.equals("No hay servicios disponibles")) {
@@ -423,7 +824,6 @@ public class DialogCita extends JDialog {
         }
     }
     
-    //--------------------------------------Seleccionar paciente-----------------------------------//
     private int getSelectedPacienteId() {
         String seleccion = (String) cbPaciente.getSelectedItem();
         if (seleccion != null && !seleccion.isEmpty()) {
@@ -439,7 +839,6 @@ public class DialogCita extends JDialog {
         return -1;
     }
     
-    //-------------------------------------Seleccionar odontologo--------------------------------//
     private int getSelectedOdontologoId() {
         String seleccion = (String) cbOdontologo.getSelectedItem();
         if (seleccion != null && !seleccion.isEmpty()) {
@@ -455,25 +854,44 @@ public class DialogCita extends JDialog {
         return -1;
     }
     
-    //---------------------------------------VALIDACIONES --------------------------------------//    
+    private int getSelectedServicioId() {
+        String nombreServicio = (String) cbServicio.getSelectedItem();
+        if (nombreServicio != null && !nombreServicio.isEmpty() && !nombreServicio.equals("No hay servicios disponibles")) {
+            List<Servicio> servicios = servicioController.listarActivos();
+            if (servicios != null) {
+                for (Servicio s : servicios) {
+                    if (s.getNombre().equals(nombreServicio)) {
+                        return s.getId();
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+    
     private void validarFechaSeleccionada() {
         LocalDate fecha = dpFecha.getDate();
         if (fecha != null) {
             LocalDate hoy = LocalDate.now();
+            
+            String mensajeHorario = citaController.getMensajeHorario(fecha.toString());
+            
             if (fecha.isBefore(hoy)) {
                 lblFechaInfo.setForeground(accentRed);
                 lblFechaInfo.setText("No se pueden agendar citas en fechas pasadas");
+            } else if (mensajeHorario.contains("cerrada") || mensajeHorario.contains("Cerrada")) {
+                lblFechaInfo.setForeground(accentRed);
+                lblFechaInfo.setText(mensajeHorario);
             } else {
                 lblFechaInfo.setForeground(new Color(60, 180, 110));
-                lblFechaInfo.setText("Fecha válida (puede ser hoy o futuro)");
+                lblFechaInfo.setText(" " + mensajeHorario);
             }
         } else {
             lblFechaInfo.setForeground(textGray);
-            lblFechaInfo.setText("Seleccione una fecha válida");
+            lblFechaInfo.setText(" Seleccione una fecha válida");
         }
     }
     
-    //------------------validar duracion----------------------//
     private void validarDuracion() {
         try {
             int duracion = Integer.parseInt(txtDuracion.getText().trim());
@@ -486,7 +904,24 @@ public class DialogCita extends JDialog {
             txtDuracion.setBorder(BorderFactory.createLineBorder(accentRed, 2));
         }
     }
-    //------------------validar campos-----------------------//
+    
+    private void limpiarCampos() {
+        cbPaciente.setSelectedIndex(-1);
+        cbOdontologo.setSelectedIndex(-1);
+        cbServicio.setSelectedIndex(-1);
+        dpFecha.setDate(LocalDate.now());
+        cargarHorasPorDefecto();
+        cbHora.setSelectedIndex(-1);
+        txtDuracion.setText("30");
+        txtNota.setText("");
+        lblPacienteInfo.setText(" ");
+        validarFechaSeleccionada();
+        if (cbEstado != null) {
+            cbEstado.setSelectedItem(Cita.ESTADO_PROGRAMADA);
+        }
+        lblDisponibilidad.setText(" ");
+    }
+    
     private String validarCampos() {
         if (getSelectedPacienteId() <= 0) {
             return "Seleccione un paciente válido";
@@ -508,6 +943,10 @@ public class DialogCita extends JDialog {
             return "No se pueden agendar citas en fechas pasadas";
         }
         
+        if (!citaController.tieneAtencion(fecha.toString())) {
+            return "No hay atención en esta fecha (domingo o festivo)";
+        }
+        
         String hora = (String) cbHora.getSelectedItem();
         if (hora == null || hora.isEmpty()) {
             return "Seleccione una hora disponible";
@@ -522,167 +961,86 @@ public class DialogCita extends JDialog {
             return "Ingrese una duración válida (número)";
         }
         
+        int odontologoId = getSelectedOdontologoId();
+        if (!citaController.tieneDisponibilidad(odontologoId, fecha.toString(), hora, 
+                Integer.parseInt(txtDuracion.getText().trim()))) {
+            return "❌ El odontólogo ya tiene una cita en este horario";
+        }
+        
         return null;
     }
     
-    //--------------------------------------GUARDAR CITA -------------------------------------//    
-    public void setCita(Cita cita) {
-        this.cita = cita;
-        if (cita != null && cita.getId() > 0) {
-            // ===== EDITAR CITA EXISTENTE =====
-            System.out.println("Editando cita ID: " + cita.getId());
-            
-            // Seleccionar paciente por nombre
-            String nombrePaciente = cita.getPacienteNombre();
-            if (nombrePaciente != null) {
-                for (int i = 0; i < cbPaciente.getItemCount(); i++) {
-                    if (cbPaciente.getItemAt(i).equals(nombrePaciente)) {
-                        cbPaciente.setSelectedIndex(i);
-                        break;
-                    }
-                }
-            }
-            
-            // Seleccionar odontólogo por nombre
-            String nombreOdontologo = cita.getOdontologoNombre();
-            if (nombreOdontologo != null) {
-                for (int i = 0; i < cbOdontologo.getItemCount(); i++) {
-                    if (cbOdontologo.getItemAt(i).equals(nombreOdontologo)) {
-                        cbOdontologo.setSelectedIndex(i);
-                        break;
-                    }
-                }
-            }
-            
-            // Seleccionar servicio por nombre
-            if (cita.getServicioId() > 0) {
-                Servicio servicio = servicioController.buscarPorId(cita.getServicioId());
-                if (servicio != null) {
-                    String nombreServicio = servicio.getNombre();
-                    for (int i = 0; i < cbServicio.getItemCount(); i++) {
-                        if (cbServicio.getItemAt(i).equals(nombreServicio)) {
-                            cbServicio.setSelectedIndex(i);
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Seleccionar fecha
-            try {
-                dpFecha.setDate(LocalDate.parse(cita.getFecha()));
-            } catch (Exception e) {
-                dpFecha.setDate(LocalDate.now());
-            }
-            
-            // Seleccionar hora
-            actualizarHorasDisponibles();
-            for (int i = 0; i < cbHora.getItemCount(); i++) {
-                if (cbHora.getItemAt(i).equals(cita.getHora())) {
-                    cbHora.setSelectedIndex(i);
-                    break;
-                }
-            }
-            
-            txtDuracion.setText(String.valueOf(cita.getDuracion()));
-            txtNota.setText(cita.getNota());
-            
-            if (esEdicion && cbEstado != null) {
-                cbEstado.setSelectedItem(cita.getEstado());
-            }
-            
-            mostrarInfoPaciente();
-            validarFechaSeleccionada();
-            
-        } else {
-            // ===== NUEVA CITA - TODOS LOS CAMPOS VACÍOS =====
-            System.out.println("Creando nueva cita");
-            
-            // Limpiar todos los campos
-            cbPaciente.setSelectedIndex(-1);
-            cbOdontologo.setSelectedIndex(-1);
-            cbServicio.setSelectedIndex(-1);
-            
-            // Fecha por defecto: hoy
-            dpFecha.setDate(LocalDate.now());
-            
-            // Limpiar hora
-            cargarHorasPorDefecto();
-            cbHora.setSelectedIndex(-1);
-            
-            // Duración por defecto: 30
-            txtDuracion.setText("30");
-            
-            // Limpiar nota
-            txtNota.setText("");
-            
-            // Limpiar información del paciente
-            lblPacienteInfo.setText(" ");
-            
-            // Validar fecha
-            validarFechaSeleccionada();
-            
-            // Estado por defecto
-            if (cbEstado != null) {
-                cbEstado.setSelectedItem(Cita.ESTADO_PROGRAMADA);
-            }
-        }
-    }
-    
-    //------------------------------------Metodo guardar cita----------------------------------//
     private void guardarCita() {
         String error = validarCampos();
         if (error != null) {
-            JOptionPane.showMessageDialog(this, " " + error, "Error de validación", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "⚠️ " + error, "Error de validación", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
-        try {
-            int pacienteId = getSelectedPacienteId();
-            int odontologoId = getSelectedOdontologoId();
-            int servicioId = getSelectedServicioId();
-            String fecha = dpFecha.getDate().toString();
-            String hora = (String) cbHora.getSelectedItem();
-            int duracion = Integer.parseInt(txtDuracion.getText().trim());
-            String nota = txtNota.getText().trim();
-            
-            Cita nuevaCita = new Cita();
-            
-            if (esEdicion && cita != null && cita.getId() > 0) {
-                nuevaCita.setId(cita.getId());
-            } else {
-                nuevaCita.setId(0);
+        mostrarProgreso("Guardando cita...");
+        
+        SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+            @Override
+            protected Boolean doInBackground() throws Exception {
+                int pacienteId = getSelectedPacienteId();
+                int odontologoId = getSelectedOdontologoId();
+                int servicioId = getSelectedServicioId();
+                String fecha = dpFecha.getDate().toString();
+                String hora = (String) cbHora.getSelectedItem();
+                int duracion = Integer.parseInt(txtDuracion.getText().trim());
+                String nota = txtNota.getText().trim();
+                
+                Cita nuevaCita = new Cita();
+                
+                if (esEdicion && cita != null && cita.getId() > 0) {
+                    nuevaCita.setId(cita.getId());
+                } else {
+                    nuevaCita.setId(0);
+                }
+                
+                nuevaCita.setPacienteId(pacienteId);
+                nuevaCita.setOdontologoId(odontologoId);
+                nuevaCita.setServicioId(servicioId);
+                nuevaCita.setFecha(fecha);
+                nuevaCita.setHora(hora);
+                nuevaCita.setDuracion(duracion);
+                nuevaCita.setNota(nota);
+                nuevaCita.setModificadaPor("admin");
+                
+                if (esEdicion && cbEstado != null) {
+                    nuevaCita.setEstado((String) cbEstado.getSelectedItem());
+                } else {
+                    nuevaCita.setEstado(Cita.ESTADO_PROGRAMADA);
+                }
+                
+                System.out.println("💾 Guardando cita - ID: " + nuevaCita.getId() + 
+                                 " | Servicio ID: " + servicioId + 
+                                 " | Estado: " + nuevaCita.getEstado());
+                
+                Thread.sleep(300);
+                
+                return citaController.guardarCita(nuevaCita);
             }
             
-            nuevaCita.setPacienteId(pacienteId);
-            nuevaCita.setOdontologoId(odontologoId);
-            nuevaCita.setServicioId(servicioId);
-            nuevaCita.setFecha(fecha);
-            nuevaCita.setHora(hora);
-            nuevaCita.setDuracion(duracion);
-            nuevaCita.setNota(nota);
-            nuevaCita.setModificadaPor("admin");
-            
-            if (esEdicion && cbEstado != null) {
-                nuevaCita.setEstado((String) cbEstado.getSelectedItem());
-            } else {
-                nuevaCita.setEstado(Cita.ESTADO_PROGRAMADA);
+            @Override
+            protected void done() {
+                try {
+                    if (get()) {
+                        guardado = true;
+                        dispose();
+                    }
+                } catch (Exception e) {
+                    System.err.println("❌ Error al guardar: " + e.getMessage());
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(DialogCita.this, 
+                        "Error al guardar: " + e.getMessage(), 
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    ocultarProgreso();
+                }
             }
-            
-            System.out.println(" Guardando cita - ID: " + nuevaCita.getId() + 
-                             " | Servicio ID: " + servicioId + 
-                             " | Estado: " + nuevaCita.getEstado());
-            
-            if (citaController.guardarCita(nuevaCita)) {
-                guardado = true;
-                dispose();
-            }
-            
-        } catch (Exception e) {
-            System.err.println("❌ Error al guardar: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error al guardar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
+        };
+        worker.execute();
     }
     
     public boolean isGuardado() {

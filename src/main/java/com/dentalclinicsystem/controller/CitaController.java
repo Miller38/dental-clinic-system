@@ -3,8 +3,8 @@ package com.dentalclinicsystem.controller;
 import com.dentalclinicsystem.dao.*;
 import com.dentalclinicsystem.model.Cita;
 import com.dentalclinicsystem.model.Paciente;
+import com.dentalclinicsystem.model.Servicio;
 import com.dentalclinicsystem.model.Usuario;
-//import com.dentalclinicsystem.model.Servicio;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -15,12 +15,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class CitaController {
+
     private CitaDAO citaDAO;
     private PacienteDAO pacienteDAO;
     private UsuarioDAO usuarioDAO;
-   // private ServicioDAO servicioDAO;
+    // private ServicioDAO servicioDAO;
     private AuditoriaDAO auditoriaDAO;
 
     // ===== CONSTANTES DE CONFIGURACIÓN =====
@@ -44,7 +44,6 @@ public class CitaController {
     // ================================================================
     // ============== VALIDACIÓN COMPLETA DE CITA =====================
     // ================================================================
-
     public String validarCita(Cita cita) {
         if (cita == null) {
             return "Datos de cita inválidos";
@@ -80,7 +79,7 @@ public class CitaController {
         }
 
         LocalDate hoy = LocalDate.now();
-        
+
         // Solo para citas nuevas: validar que no sea en el pasado
         if (cita.getId() == 0 && fechaCita.isBefore(hoy)) {
             return "No se pueden agendar citas en fechas pasadas";
@@ -88,7 +87,7 @@ public class CitaController {
 
         // ===== 3. VALIDACIÓN DE DÍA (Sábado, Domingo y Festivos) =====
         int diaSemana = fechaCita.getDayOfWeek().getValue(); // 1=Lunes, 7=Domingo
-        
+
         // 3.1 No se trabaja los domingos
         if (diaSemana == 7) {
             return "❌ La clínica no atiende los domingos. Seleccione otro día";
@@ -115,10 +114,10 @@ public class CitaController {
             }
 
             // 4.2 Validar hora de almuerzo (12:00 - 14:00)
-            if (cita.getHora().compareTo(HORA_ALMUERZO_INICIO) >= 0 && 
-                cita.getHora().compareTo(HORA_ALMUERZO_FIN) < 0) {
-                return "❌ Horario de almuerzo de " + HORA_ALMUERZO_INICIO + 
-                       " a " + HORA_ALMUERZO_FIN + ". Seleccione otra hora";
+            if (cita.getHora().compareTo(HORA_ALMUERZO_INICIO) >= 0
+                    && cita.getHora().compareTo(HORA_ALMUERZO_FIN) < 0) {
+                return "❌ Horario de almuerzo de " + HORA_ALMUERZO_INICIO
+                        + " a " + HORA_ALMUERZO_FIN + ". Seleccione otra hora";
             }
         }
 
@@ -129,12 +128,12 @@ public class CitaController {
                 LocalTime horaCita = LocalTime.parse(cita.getHora());
                 LocalDateTime fechaHoraCita = LocalDateTime.of(fechaCita, horaCita);
                 LocalDateTime ahora = LocalDateTime.now();
-                
+
                 // Si la cita es hoy, validar anticipación
                 if (fechaCita.isEqual(hoy)) {
                     if (fechaHoraCita.isBefore(ahora.plusHours(ANTICIPACION_MINIMA_HORAS))) {
-                        return "⚠️ Las citas deben agendarse con al menos " + 
-                               ANTICIPACION_MINIMA_HORAS + " horas de anticipación";
+                        return "⚠️ Las citas deben agendarse con al menos "
+                                + ANTICIPACION_MINIMA_HORAS + " horas de anticipación";
                     }
                 }
             } catch (Exception e) {
@@ -176,19 +175,18 @@ public class CitaController {
 //        if (servicio.getEstado() != 1) {
 //            return "El servicio no está disponible";
 //        }
-
         // ===== 10. CONFLICTO DE HORARIOS =====
-        if (citaDAO.existeConflicto(cita.getOdontologoId(), cita.getFecha(), 
-                                    cita.getHora(), cita.getDuracion(), cita.getId())) {
+        if (citaDAO.existeConflicto(cita.getOdontologoId(), cita.getFecha(),
+                cita.getHora(), cita.getDuracion(), cita.getId())) {
             return "❌ El odontólogo ya tiene una cita en ese horario";
         }
 
         // ===== 11. LÍMITE DE CITAS POR ODONTÓLOGO (10 por día) =====
         int citasOdontologoHoy = citaDAO.contarCitasPorOdontologoYFecha(
-            cita.getOdontologoId(), cita.getFecha());
+                cita.getOdontologoId(), cita.getFecha());
         if (citasOdontologoHoy >= MAX_CITAS_POR_DIA) {
-            return "⚠️ El odontólogo ya tiene el máximo de citas para este día (" + 
-                   MAX_CITAS_POR_DIA + "). Seleccione otro día";
+            return "⚠️ El odontólogo ya tiene el máximo de citas para este día ("
+                    + MAX_CITAS_POR_DIA + "). Seleccione otro día";
         }
 
         // ===== 12. LÍMITE DE CITAS POR PACIENTE (2 por día) =====
@@ -196,24 +194,24 @@ public class CitaController {
         List<Cita> citasPaciente = citaDAO.obtenerPorPaciente(cita.getPacienteId());
         int citasPacienteHoy = 0;
         for (Cita c : citasPaciente) {
-            if (c.getFecha().equals(cita.getFecha()) && 
-                !c.getEstado().equals("CANCELADA") && 
-                !c.getEstado().equals("COMPLETADA") &&
-                c.getId() != cita.getId()) {
+            if (c.getFecha().equals(cita.getFecha())
+                    && !c.getEstado().equals("CANCELADA")
+                    && !c.getEstado().equals("COMPLETADA")
+                    && c.getId() != cita.getId()) {
                 citasPacienteHoy++;
             }
         }
         if (citasPacienteHoy >= MAX_CITAS_POR_PACIENTE_DIA) {
-            return "⚠️ El paciente ya tiene " + MAX_CITAS_POR_PACIENTE_DIA + 
-                   " citas para este día. Máximo permitido";
+            return "⚠️ El paciente ya tiene " + MAX_CITAS_POR_PACIENTE_DIA
+                    + " citas para este día. Máximo permitido";
         }
 
         // ===== 13. VALIDAR REAGENDAMIENTOS (máximo 3) =====
         if (cita.getId() > 0) {
             int reagendamientos = contarReagendamientos(cita.getId());
             if (reagendamientos >= MAX_REAGENDAMIENTOS) {
-                return "⚠️ Esta cita ya ha sido reagendada " + MAX_REAGENDAMIENTOS + 
-                       " veces. No se permite más reagendamientos";
+                return "⚠️ Esta cita ya ha sido reagendada " + MAX_REAGENDAMIENTOS
+                        + " veces. No se permite más reagendamientos";
             }
         }
 
@@ -223,13 +221,12 @@ public class CitaController {
     // ================================================================
     // ============== MÉTODOS PARA VALIDAR FESTIVOS ===================
     // ================================================================
-
     /**
      * Verifica si una fecha es día festivo
      */
     private boolean esDiaFestivo(LocalDate fecha) {
         String mesDia = String.format("%02d-%02d", fecha.getMonthValue(), fecha.getDayOfMonth());
-        
+
         // Festivos fijos de Ecuador
         String[] festivosFijos = {
             "01-01", // Año Nuevo
@@ -240,9 +237,9 @@ public class CitaController {
             "10-09", // Independencia de Guayaquil
             "11-02", // Día de los Difuntos
             "11-03", // Independencia de Cuenca
-            "12-25"  // Navidad
+            "12-25" // Navidad
         };
-        
+
         for (String festivo : festivosFijos) {
             if (mesDia.equals(festivo)) {
                 return true;
@@ -269,7 +266,7 @@ public class CitaController {
         LocalDate pascua = calcularPascua(año);
         LocalDate lunesCarnaval = pascua.minusDays(48);
         LocalDate martesCarnaval = pascua.minusDays(47);
-        
+
         return fecha.equals(lunesCarnaval) || fecha.equals(martesCarnaval);
     }
 
@@ -281,7 +278,7 @@ public class CitaController {
         LocalDate pascua = calcularPascua(año);
         LocalDate juevesSanto = pascua.minusDays(3);
         LocalDate viernesSanto = pascua.minusDays(2);
-        
+
         return fecha.equals(juevesSanto) || fecha.equals(viernesSanto);
     }
 
@@ -295,7 +292,7 @@ public class CitaController {
         int d = (19 * a + 24) % 30;
         int e = (2 * b + 4 * c + 6 * d + 5) % 7;
         int dia = 22 + d + e;
-        
+
         if (dia <= 31) {
             return LocalDate.of(año, 3, dia);
         } else {
@@ -306,7 +303,6 @@ public class CitaController {
     // ================================================================
     // ============== MÉTODOS DE CONSULTA Y UTILIDADES ================
     // ================================================================
-
     /**
      * Cuenta cuántas veces se ha reagendado una cita
      */
@@ -328,7 +324,7 @@ public class CitaController {
      */
     public List<String> getHorasDisponibles(int odontologoId, String fecha, int duracion) {
         List<String> horasDisponibles = new ArrayList<>();
-        
+
         LocalDate fechaCita;
         try {
             fechaCita = LocalDate.parse(fecha);
@@ -341,7 +337,7 @@ public class CitaController {
         // SÁBADOS: Solo 8:00 AM - 12:00 PM
         if (diaSemana == 6) {
             String[] horasSabado = {
-                "08:00", "08:30", "09:00", "09:30", 
+                "08:00", "08:30", "09:00", "09:30",
                 "10:00", "10:30", "11:00", "11:30"
             };
             return filtrarHorasDisponibles(odontologoId, fecha, duracion, horasSabado);
@@ -360,7 +356,7 @@ public class CitaController {
         // LUNES A VIERNES: Horario completo con almuerzo
         String[] horasLaborales = {
             "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
-            "11:00", "11:30", 
+            "11:00", "11:30",
             // 12:00 - 14:00 ALMUERZO (excluido)
             "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
             "17:00", "17:30"
@@ -369,13 +365,10 @@ public class CitaController {
         return filtrarHorasDisponibles(odontologoId, fecha, duracion, horasLaborales);
     }
 
-    /**
-     * Filtra las horas disponibles excluyendo las ocupadas
-     */
-    private List<String> filtrarHorasDisponibles(int odontologoId, String fecha, 
-                                                  int duracion, String[] horasBase) {
+    private List<String> filtrarHorasDisponibles(int odontologoId, String fecha,
+            int duracion, String[] horasBase) {
         List<String> horasDisponibles = new ArrayList<>();
-        
+
         if (odontologoId <= 0 || fecha == null || fecha.isEmpty()) {
             for (String hora : horasBase) {
                 horasDisponibles.add(hora);
@@ -387,17 +380,15 @@ public class CitaController {
 
         for (String hora : horasBase) {
             boolean ocupada = false;
+            String horaFinNueva = calcularHoraFin(hora, duracion);
+
             for (Cita cita : citasExistentes) {
                 String horaCita = cita.getHora();
-                int duracionCita = cita.getDuracion();
-                String horaFinCita = calcularHoraFin(horaCita, duracionCita);
+                String horaFinCita = calcularHoraFin(horaCita, cita.getDuracion());
 
-                if (hora.compareTo(horaCita) >= 0 && hora.compareTo(horaFinCita) < 0) {
-                    ocupada = true;
-                    break;
-                }
-                if (horaCita.compareTo(hora) >= 0 && 
-                    horaCita.compareTo(calcularHoraFin(hora, duracion)) < 0) {
+                // Verificar intersección: dos intervalos se superponen si
+                // hora < horaFinCita Y horaCita < horaFinNueva
+                if (hora.compareTo(horaFinCita) < 0 && horaCita.compareTo(horaFinNueva) < 0) {
                     ocupada = true;
                     break;
                 }
@@ -410,7 +401,8 @@ public class CitaController {
     }
 
     /**
-     * Calcula la hora de fin sumando la duración
+     * Calcula la hora de fin sumando la duración (ya lo tienes en el
+     * controller)
      */
     public String calcularHoraFin(String horaInicio, int duracion) {
         try {
@@ -422,7 +414,9 @@ public class CitaController {
                 minutos -= 60;
                 horas++;
             }
-            if (horas >= 24) horas -= 24;
+            if (horas >= 24) {
+                horas -= 24;
+            }
             return String.format("%02d:%02d", horas, minutos);
         } catch (Exception e) {
             return horaInicio;
@@ -430,21 +424,22 @@ public class CitaController {
     }
 
     /**
-     * Verifica si una fecha tiene atención (no es sábado tarde, domingo o festivo)
+     * Verifica si una fecha tiene atención (no es sábado tarde, domingo o
+     * festivo)
      */
     public boolean tieneAtencion(String fecha) {
         try {
             LocalDate fechaCita = LocalDate.parse(fecha);
             int diaSemana = fechaCita.getDayOfWeek().getValue();
-            
+
             if (diaSemana == 7) {
                 return false;
             }
-            
+
             if (esDiaFestivo(fechaCita)) {
                 return false;
             }
-            
+
             return true;
         } catch (Exception e) {
             return false;
@@ -458,22 +453,22 @@ public class CitaController {
         try {
             LocalDate fechaCita = LocalDate.parse(fecha);
             int diaSemana = fechaCita.getDayOfWeek().getValue();
-            
+
             if (diaSemana == 7) {
                 return "🔴 Los domingos la clínica está cerrada";
             }
-            
+
             if (diaSemana == 6) {
                 return "🟡 Los sábados atención de 8:00 AM a 12:00 PM (medio día)";
             }
-            
+
             if (esDiaFestivo(fechaCita)) {
                 return "🔴 Día festivo - La clínica está cerrada";
             }
-            
-            return "🟢 Atención de " + HORA_INICIO + " a " + HORA_FIN + 
-                   " (Almuerzo de " + HORA_ALMUERZO_INICIO + " a " + HORA_ALMUERZO_FIN + ")";
-            
+
+            return "🟢 Atención de " + HORA_INICIO + " a " + HORA_FIN
+                    + " (Almuerzo de " + HORA_ALMUERZO_INICIO + " a " + HORA_ALMUERZO_FIN + ")";
+
         } catch (Exception e) {
             return "📌 Seleccione una fecha válida";
         }
@@ -489,7 +484,6 @@ public class CitaController {
     // ================================================================
     // ============== MÉTODOS CRUD ====================================
     // ================================================================
-
     public boolean guardarCita(Cita cita) {
         if (cita == null) {
             return false;
@@ -529,10 +523,10 @@ public class CitaController {
     }
 
     public boolean eliminarCita(int id) {
-        int confirm = JOptionPane.showConfirmDialog(null, 
-            "¿Está seguro de eliminar esta cita?", 
-            "Confirmar eliminación", 
-            JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(null,
+                "¿Está seguro de eliminar esta cita?",
+                "Confirmar eliminación",
+                JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
             boolean exito = citaDAO.eliminar(id);
@@ -551,14 +545,14 @@ public class CitaController {
             JOptionPane.showMessageDialog(null, "Cita no encontrada", "Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        
+
         String estadoActual = cita.getEstado();
-        
+
         // No permitir cambios desde estados finales
         if (estadoActual.equals("COMPLETADA") || estadoActual.equals("CANCELADA")) {
-            JOptionPane.showMessageDialog(null, 
-                "No se puede cambiar el estado de una cita " + estadoActual.toLowerCase(),
-                "Error", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(null,
+                    "No se puede cambiar el estado de una cita " + estadoActual.toLowerCase(),
+                    "Error", JOptionPane.WARNING_MESSAGE);
             return false;
         }
 
@@ -567,9 +561,9 @@ public class CitaController {
             LocalDate fechaCita = LocalDate.parse(cita.getFecha());
             if (fechaCita.isBefore(LocalDate.now()) && !estadoActual.equals("COMPLETADA")) {
                 if (!nuevoEstado.equals("CANCELADA") && !nuevoEstado.equals("NO_ASISTIO")) {
-                    JOptionPane.showMessageDialog(null, 
-                        "⚠️ La cita ya pasó. Solo puede marcarla como CANCELADA o NO_ASISTIO",
-                        "Error", JOptionPane.WARNING_MESSAGE);
+                    JOptionPane.showMessageDialog(null,
+                            "⚠️ La cita ya pasó. Solo puede marcarla como CANCELADA o NO_ASISTIO",
+                            "Error", JOptionPane.WARNING_MESSAGE);
                     return false;
                 }
             }
@@ -580,9 +574,9 @@ public class CitaController {
         boolean exito = citaDAO.actualizarEstado(id, nuevoEstado);
         if (exito) {
             auditoriaDAO.registrar("ESTADO_CAMBIO", "citas", id);
-            JOptionPane.showMessageDialog(null, 
-                "✅ Cita actualizada a: " + nuevoEstado, 
-                "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null,
+                    "✅ Cita actualizada a: " + nuevoEstado,
+                    "Éxito", JOptionPane.INFORMATION_MESSAGE);
         }
         return exito;
     }
@@ -590,10 +584,44 @@ public class CitaController {
     // ================================================================
     // ============== MÉTODOS DE CONSULTA =============================
     // ================================================================
-
-    public Cita buscarPorId(int id) {
-        return citaDAO.obtenerPorId(id);
+  public Cita buscarPorId(int id) {
+    System.out.println("🔍 Buscando cita por ID: " + id);
+    Cita cita = citaDAO.obtenerPorId(id);
+    if (cita != null) {
+        System.out.println("✅ Cita encontrada - Paciente ID: " + cita.getPacienteId());
+        System.out.println("   Paciente Nombre: " + cita.getPacienteNombre());
+        System.out.println("   Odontólogo Nombre: " + cita.getOdontologoNombre());
+        System.out.println("   Servicio Nombre: " + cita.getServicioNombre());
+        
+        // Asegurar que los nombres estén cargados
+        if (cita.getPacienteNombre() == null || cita.getPacienteNombre().isEmpty()) {
+            PacienteController pc = new PacienteController();
+            Paciente paciente = pc.buscarPorId(cita.getPacienteId());
+            if (paciente != null) {
+                cita.setPacienteNombre(paciente.getNombreCompleto());
+            }
+        }
+        
+        if (cita.getOdontologoNombre() == null || cita.getOdontologoNombre().isEmpty()) {
+            UsuariosController uc = new UsuariosController();
+            Usuario odontologo = uc.buscarPorId(cita.getOdontologoId());
+            if (odontologo != null) {
+                cita.setOdontologoNombre(odontologo.getNombre());
+            }
+        }
+        
+        if (cita.getServicioNombre() == null || cita.getServicioNombre().isEmpty()) {
+            ServicioController sc = new ServicioController();
+            Servicio servicio = sc.buscarPorId(cita.getServicioId());
+            if (servicio != null) {
+                cita.setServicioNombre(servicio.getNombre());
+            }
+        }
+    } else {
+        System.err.println("❌ Cita NO encontrada con ID: " + id);
     }
+    return cita;
+}
 
     public List<Cita> listarPorPaciente(int pacienteId) {
         return citaDAO.obtenerPorPaciente(pacienteId);
@@ -652,13 +680,20 @@ public class CitaController {
 
     public String getColorEstado(String estado) {
         switch (estado) {
-            case "PROGRAMADA": return "#64B4FF";
-            case "CONFIRMADA": return "#4BC878";
-            case "EN_PROCESO": return "#FFAA32";
-            case "COMPLETADA": return "#32A852";
-            case "CANCELADA": return "#FF6464";
-            case "NO_ASISTIO": return "#FF6B6B";
-            default: return "#888888";
+            case "PROGRAMADA":
+                return "#64B4FF";
+            case "CONFIRMADA":
+                return "#4BC878";
+            case "EN_PROCESO":
+                return "#FFAA32";
+            case "COMPLETADA":
+                return "#32A852";
+            case "CANCELADA":
+                return "#FF6464";
+            case "NO_ASISTIO":
+                return "#FF6B6B";
+            default:
+                return "#888888";
         }
     }
 
@@ -678,8 +713,8 @@ public class CitaController {
     // ================================================================
     // ============== CLASE INTERNA PARA RESUMEN ======================
     // ================================================================
-
     public static class CitaResumen {
+
         public int totalHoy;
         public int programadas;
         public int confirmadas;
@@ -688,12 +723,60 @@ public class CitaController {
         public int canceladas;
         public int noAsistio;
         public int totalPendientes;
-        
+
         @Override
         public String toString() {
-            return "Citas hoy: " + totalHoy + 
-                   " | Pendientes: " + totalPendientes +
-                   " | Completadas: " + completadas;
+            return "Citas hoy: " + totalHoy
+                    + " | Pendientes: " + totalPendientes
+                    + " | Completadas: " + completadas;
         }
     }
+    
+    //-----------------------  Validacion disponibilidad tiempo real ---------------//
+    /**
+ * Verifica si un horario está disponible en tiempo real
+ * Útil para validaciones instantáneas en la UI
+ */
+public boolean isHorarioDisponible(int odontologoId, String fecha, String hora, int duracion) {
+    // Validación rápida sin mensajes
+    if (odontologoId <= 0 || fecha == null || fecha.isEmpty() || 
+        hora == null || hora.isEmpty() || duracion <= 0) {
+        return false;
+    }
+    
+    // Verificar si la fecha tiene atención
+    if (!tieneAtencion(fecha)) {
+        return false;
+    }
+    
+    // Verificar conflicto de horario
+    return !citaDAO.existeConflicto(odontologoId, fecha, hora, duracion, 0);
+}
+
+/**
+ * Obtiene el mensaje de estado de disponibilidad para mostrar en UI
+ */
+public String getMensajeDisponibilidad(int odontologoId, String fecha, String hora, int duracion) {
+    if (odontologoId <= 0) {
+        return "Seleccione un odontólogo";
+    }
+    
+    if (fecha == null || fecha.isEmpty()) {
+        return "Seleccione una fecha";
+    }
+    
+    if (!tieneAtencion(fecha)) {
+        return "Sin atención en esta fecha";
+    }
+    
+    if (hora == null || hora.isEmpty()) {
+        return "Seleccione una hora";
+    }
+    
+    if (isHorarioDisponible(odontologoId, fecha, hora, duracion)) {
+        return "✅ Horario disponible";
+    } else {
+        return "❌ Horario ocupado";
+    }
+}
 }

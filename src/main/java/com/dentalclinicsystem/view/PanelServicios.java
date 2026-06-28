@@ -153,7 +153,7 @@ public class PanelServicios extends JPanel {
         actionPanel.add(btnEditar);
         
         // -------------------------------------Botón Eliminar-----------------------------------//
-        btnEliminar = createActionButton("🗑️ Eliminar", accentRed);
+        btnEliminar = createActionButton("Eliminar", accentRed);
         btnEliminar.addActionListener(e -> eliminarServicio());
         actionPanel.add(btnEliminar);
         //--------------------------------- Botones debajo del titulo ---------------------------//

@@ -14,7 +14,7 @@ public class LoginView extends javax.swing.JFrame {
      */
     public LoginView() {
         initComponents();
-        this.setTitle("BarberPro Login");
+        this.setTitle("DentalClinicSystem Login");
         this .setSize(427, 558);
         this.setResizable(false);
         this.setLocationRelativeTo(null);

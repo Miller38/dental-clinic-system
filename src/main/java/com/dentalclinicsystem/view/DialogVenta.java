@@ -36,9 +36,14 @@ public class DialogVenta extends JDialog {
     private JTextArea txtNotas;
     private JScrollPane scrollDetalles;
     
-    // 🔥 NUEVO: Checkbox para enviar factura
     private JCheckBox chkEnviarFactura;
     private JLabel lblEmailInfo;
+    
+    // ======================= COMPONENTES DE PROGRESO =======================
+    private JProgressBar progressBar;
+    private JLabel lblEstado;
+    private JPanel progressPanel;
+    // ============================================================================
     
     private boolean guardado = false;
     private static final double IVA = 0.19;
@@ -68,7 +73,11 @@ public class DialogVenta extends JDialog {
         dfMostrar.setGroupingUsed(false);
         
         initComponents();
-        setSize(750, 700);
+        
+        // Cargar datos con progreso
+        cargarDatosIniciales();
+        
+        setSize(750, 720);
         setLocationRelativeTo(parent);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setModal(true);
@@ -110,7 +119,6 @@ public class DialogVenta extends JDialog {
         cbPaciente.setForeground(textLight);
         cbPaciente.setBorder(BorderFactory.createLineBorder(fieldBorder));
         cbPaciente.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cargarPacientes();
         cbPaciente.addActionListener(e -> mostrarInfoPaciente());
         topPanel.add(cbPaciente, gbc);
         row++;
@@ -147,7 +155,6 @@ public class DialogVenta extends JDialog {
         cbServicio.setForeground(textLight);
         cbServicio.setBorder(BorderFactory.createLineBorder(fieldBorder));
         cbServicio.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cargarServicios();
         cbServicio.addActionListener(e -> actualizarPrecio());
         topPanel.add(cbServicio, gbc);
         
@@ -263,6 +270,28 @@ public class DialogVenta extends JDialog {
         
         bottomPanel.add(resumenPanel, BorderLayout.NORTH);
         
+        // ======================= PANEL DE PROGRESO =======================
+        progressPanel = new JPanel(new BorderLayout(10, 5));
+        progressPanel.setBackground(darkBg);
+        progressPanel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        progressPanel.setVisible(false);
+        
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setPreferredSize(new Dimension(0, 18));
+        progressBar.setBackground(new Color(50, 50, 55));
+        progressBar.setForeground(accentBlue);
+        progressBar.setBorderPainted(false);
+        progressPanel.add(progressBar, BorderLayout.CENTER);
+        
+        lblEstado = new JLabel("Procesando...");
+        lblEstado.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblEstado.setForeground(accentBlue);
+        progressPanel.add(lblEstado, BorderLayout.SOUTH);
+        
+        bottomPanel.add(progressPanel, BorderLayout.CENTER);
+        // ========================================================================
+        
         // Notas y Envío de Factura
         JPanel notasPanel = new JPanel(new GridBagLayout());
         notasPanel.setBackground(darkBg);
@@ -299,7 +328,7 @@ public class DialogVenta extends JDialog {
         scrollNotas.setPreferredSize(new Dimension(0, 50));
         notasPanel.add(scrollNotas, gbcNotas);
         
-        // 🔥 NUEVO: Checkbox para enviar factura
+        // Checkbox para enviar factura
         gbcNotas.gridx = 0; gbcNotas.gridy = 1;
         gbcNotas.gridwidth = 4;
         gbcNotas.weightx = 1.0;
@@ -322,7 +351,7 @@ public class DialogVenta extends JDialog {
         envioPanel.add(lblEmailInfo);
         notasPanel.add(envioPanel, gbcNotas);
         
-        bottomPanel.add(notasPanel, BorderLayout.CENTER);
+        bottomPanel.add(notasPanel, BorderLayout.SOUTH);
         
         // Botones
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
@@ -345,6 +374,122 @@ public class DialogVenta extends JDialog {
         add(mainPanel);
     }
     
+    // ======================= MÉTODOS DE PROGRESO =======================
+    
+    private void mostrarProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            progressPanel.setVisible(true);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText(mensaje);
+            setControlesEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        });
+    }
+    
+    private void ocultarProgreso() {
+        SwingUtilities.invokeLater(() -> {
+            progressPanel.setVisible(false);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText("");
+            setControlesEnabled(true);
+            setCursor(Cursor.getDefaultCursor());
+        });
+    }
+    
+    private void actualizarMensajeProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            lblEstado.setText(mensaje);
+        });
+    }
+    
+    private void setControlesEnabled(boolean enabled) {
+        cbPaciente.setEnabled(enabled);
+        cbServicio.setEnabled(enabled);
+        cbMetodoPago.setEnabled(enabled);
+        cbTipoComprobante.setEnabled(enabled);
+        txtCantidad.setEnabled(enabled);
+        txtPrecio.setEnabled(enabled);
+        btnAgregar.setEnabled(enabled);
+        btnEliminar.setEnabled(enabled);
+        btnGuardar.setEnabled(enabled);
+        txtNotas.setEnabled(enabled);
+        chkEnviarFactura.setEnabled(enabled);
+        tablaDetalles.setEnabled(enabled);
+    }
+    
+    // ======================= MÉTODOS DE CARGA CON PROGRESO =======================
+    
+    private void cargarDatosIniciales() {
+        mostrarProgreso("Cargando datos...");
+        
+        SwingWorker<Void, Integer> worker = new SwingWorker<Void, Integer>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                // Simular progreso
+                for (int i = 0; i < 5; i++) {
+                    Thread.sleep(80);
+                    publish((i + 1) * 20);
+                }
+                
+                // Cargar pacientes (en segundo plano)
+                List<Paciente> pacientes = pacienteController.listarTodos();
+                SwingUtilities.invokeLater(() -> {
+                    cbPaciente.removeAllItems();
+                    if (pacientes != null && !pacientes.isEmpty()) {
+                        for (Paciente p : pacientes) {
+                            cbPaciente.addItem(p.getNombreCompleto());
+                        }
+                    }
+                    cbPaciente.setSelectedIndex(-1);
+                });
+                
+                // Cargar servicios (en segundo plano)
+                List<Servicio> servicios = servicioController.listarActivos();
+                SwingUtilities.invokeLater(() -> {
+                    cbServicio.removeAllItems();
+                    if (servicios != null && !servicios.isEmpty()) {
+                        for (Servicio s : servicios) {
+                            cbServicio.addItem(s.getNombre());
+                        }
+                    }
+                    cbServicio.setSelectedIndex(-1);
+                });
+                
+                return null;
+            }
+            
+            @Override
+            protected void process(java.util.List<Integer> chunks) {
+                int progress = chunks.get(chunks.size() - 1);
+                progressBar.setIndeterminate(false);
+                progressBar.setValue(progress);
+                lblEstado.setText("Cargando datos... " + progress + "%");
+            }
+            
+            @Override
+            protected void done() {
+                try {
+                    // Verificar que haya datos
+                    if (cbPaciente.getItemCount() == 0) {
+                        JOptionPane.showMessageDialog(DialogVenta.this,
+                            "No hay pacientes registrados. Cree un paciente primero.",
+                            "Aviso", JOptionPane.WARNING_MESSAGE);
+                    }
+                    if (cbServicio.getItemCount() == 0) {
+                        JOptionPane.showMessageDialog(DialogVenta.this,
+                            "No hay servicios registrados. Cree un servicio primero.",
+                            "Aviso", JOptionPane.WARNING_MESSAGE);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error al cargar datos iniciales: " + e.getMessage());
+                } finally {
+                    ocultarProgreso();
+                }
+            }
+        };
+        worker.execute();
+    }
+    
     // ========== MÉTODOS AUXILIARES ==========
     
     private JLabel createLabel(String text) {
@@ -365,27 +510,6 @@ public class DialogVenta extends JDialog {
         return btn;
     }
     
-    private void cargarPacientes() {
-        cbPaciente.removeAllItems();
-        List<Paciente> pacientes = pacienteController.listarTodos();
-        if (pacientes != null) {
-            for (Paciente p : pacientes) {
-                cbPaciente.addItem(p.getNombreCompleto());
-            }
-        }
-    }
-    
-    private void cargarServicios() {
-        cbServicio.removeAllItems();
-        List<Servicio> servicios = servicioController.listarActivos();
-        if (servicios != null) {
-            for (Servicio s : servicios) {
-                cbServicio.addItem(s.getNombre());
-            }
-        }
-    }
-    
-    // 🔥 NUEVO: Mostrar información del paciente y actualizar checkbox
     private void mostrarInfoPaciente() {
         String seleccion = (String) cbPaciente.getSelectedItem();
         if (seleccion != null && !seleccion.isEmpty()) {
@@ -393,7 +517,6 @@ public class DialogVenta extends JDialog {
             if (pacientes != null) {
                 for (Paciente p : pacientes) {
                     if (p.getNombreCompleto().equals(seleccion)) {
-                        // Actualizar checkbox con el email del paciente
                         if (p.getEmail() != null && !p.getEmail().isEmpty()) {
                             chkEnviarFactura.setEnabled(true);
                             chkEnviarFactura.setText("Enviar factura a: " + p.getEmail());
@@ -534,21 +657,19 @@ public class DialogVenta extends JDialog {
     }
     
     private void actualizarTotales() {
-    double subtotal = 0;
-    for (int i = 0; i < modelDetalles.getRowCount(); i++) {
-        String subtotalStr = (String) modelDetalles.getValueAt(i, 3);
-        subtotal += parsearPrecio(subtotalStr);
+        double subtotal = 0;
+        for (int i = 0; i < modelDetalles.getRowCount(); i++) {
+            String subtotalStr = (String) modelDetalles.getValueAt(i, 3);
+            subtotal += parsearPrecio(subtotalStr);
+        }
+        
+        double impuesto = subtotal * IVA;
+        double total = subtotal + impuesto;
+        
+        lblSubtotal.setText("Subtotal: $" + String.format("%.2f", subtotal));
+        lblImpuesto.setText("IVA (19%): $" + String.format("%.2f", impuesto));
+        lblTotal.setText("Total: $" + String.format("%.2f", total));
     }
-    
-    // 🔥 CORREGIDO: Calcular IVA correctamente
-    double impuesto = subtotal * IVA;
-    double total = subtotal + impuesto;
-    
-    // 🔥 Actualizar labels con valores correctos
-    lblSubtotal.setText("Subtotal: $" + String.format("%.2f", subtotal));
-    lblImpuesto.setText("IVA (19%): $" + String.format("%.2f", impuesto));
-    lblTotal.setText("Total: $" + String.format("%.2f", total));
-}
     
     private int getSelectedPacienteId() {
         String nombre = (String) cbPaciente.getSelectedItem();
@@ -565,76 +686,121 @@ public class DialogVenta extends JDialog {
         return -1;
     }
     
-    // ========== GUARDAR VENTA ==========
+    // ========== GUARDAR VENTA CON PROGRESO ==========
     
-   private void guardarVenta() {
-    int pacienteId = getSelectedPacienteId();
-    if (pacienteId <= 0) {
-        JOptionPane.showMessageDialog(this, "Seleccione un paciente", "Error", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    if (modelDetalles.getRowCount() == 0) {
-        JOptionPane.showMessageDialog(this, "Agregue al menos un detalle a la venta", "Error", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    String metodoPago = (String) cbMetodoPago.getSelectedItem();
-    if (metodoPago == null) {
-        JOptionPane.showMessageDialog(this, "Seleccione un método de pago", "Error", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    try {
-        Venta venta = new Venta();
-        venta.setPacienteId(pacienteId);
-        venta.setMetodoPago(metodoPago);
-        venta.setTipoComprobante((String) cbTipoComprobante.getSelectedItem());
-        venta.setNotas(txtNotas.getText().trim());
-        venta.setImpuesto(IVA);
-        
-        // 🔥 FORZAR LA FECHA ACTUAL
-        venta.setFecha(LocalDate.now().toString());
-        
-        for (int i = 0; i < modelDetalles.getRowCount(); i++) {
-            String nombre = (String) modelDetalles.getValueAt(i, 0);
-            int cantidad = (int) modelDetalles.getValueAt(i, 1);
-            String precioStr = (String) modelDetalles.getValueAt(i, 2);
-            
-            double precio = parsearPrecio(precioStr);
-            int servicioId = getServicioIdByNombre(nombre);
-            
-            DetalleVenta detalle = new DetalleVenta();
-            detalle.setTipoItem("SERVICIO");
-            detalle.setItemId(servicioId);
-            detalle.setNombre(nombre);
-            detalle.setCantidad(cantidad);
-            detalle.setPrecioUnitario(precio);
-            detalle.setSubtotal(cantidad * precio);
-            venta.agregarDetalle(detalle);
+    private void guardarVenta() {
+        int pacienteId = getSelectedPacienteId();
+        if (pacienteId <= 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un paciente", "Error", JOptionPane.WARNING_MESSAGE);
+            return;
         }
         
-        venta.recalcularTotales();
-        
-        boolean enviarFactura = chkEnviarFactura.isSelected() && chkEnviarFactura.isEnabled();
-        boolean exito = ventaController.guardarVenta(venta, enviarFactura);
-        
-        if (exito) {
-            guardado = true;
-            dispose();
+        if (modelDetalles.getRowCount() == 0) {
+            JOptionPane.showMessageDialog(this, "Agregue al menos un detalle a la venta", "Error", JOptionPane.WARNING_MESSAGE);
+            return;
         }
         
-    } catch (NumberFormatException e) {
-        JOptionPane.showMessageDialog(this, 
-            "Error en el formato del precio. Use solo números (ej: 50000)", 
-            "Error de formato", 
-            JOptionPane.ERROR_MESSAGE);
-    } catch (Exception e) {
-        System.err.println("Error al guardar venta: " + e.getMessage());
-        e.printStackTrace();
-        JOptionPane.showMessageDialog(this, "Error al guardar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        String metodoPago = (String) cbMetodoPago.getSelectedItem();
+        if (metodoPago == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione un método de pago", "Error", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // ========== MOSTRAR PROGRESO ==========
+        mostrarProgreso("Preparando venta...");
+        
+        SwingWorker<Boolean, Integer> worker = new SwingWorker<Boolean, Integer>() {
+            private Venta venta;
+            
+            @Override
+            protected Boolean doInBackground() throws Exception {
+                // Paso 1: Crear la venta
+                publish(20);
+                SwingUtilities.invokeLater(() -> actualizarMensajeProgreso("Creando venta..."));
+                
+                venta = new Venta();
+                venta.setPacienteId(pacienteId);
+                venta.setMetodoPago(metodoPago);
+                venta.setTipoComprobante((String) cbTipoComprobante.getSelectedItem());
+                venta.setNotas(txtNotas.getText().trim());
+                venta.setImpuesto(IVA);
+                venta.setFecha(LocalDate.now().toString());
+                
+                // Paso 2: Agregar detalles
+                publish(40);
+                SwingUtilities.invokeLater(() -> actualizarMensajeProgreso("Agregando detalles..."));
+                
+                for (int i = 0; i < modelDetalles.getRowCount(); i++) {
+                    String nombre = (String) modelDetalles.getValueAt(i, 0);
+                    int cantidad = (int) modelDetalles.getValueAt(i, 1);
+                    String precioStr = (String) modelDetalles.getValueAt(i, 2);
+                    
+                    double precio = parsearPrecio(precioStr);
+                    int servicioId = getServicioIdByNombre(nombre);
+                    
+                    DetalleVenta detalle = new DetalleVenta();
+                    detalle.setTipoItem("SERVICIO");
+                    detalle.setItemId(servicioId);
+                    detalle.setNombre(nombre);
+                    detalle.setCantidad(cantidad);
+                    detalle.setPrecioUnitario(precio);
+                    detalle.setSubtotal(cantidad * precio);
+                    venta.agregarDetalle(detalle);
+                }
+                
+                venta.recalcularTotales();
+                
+                // Paso 3: Guardar en BD
+                publish(60);
+                SwingUtilities.invokeLater(() -> actualizarMensajeProgreso("Guardando en la base de datos..."));
+                Thread.sleep(300);
+                
+                boolean enviarFactura = chkEnviarFactura.isSelected() && chkEnviarFactura.isEnabled();
+                
+                // Paso 4: Enviar factura si corresponde
+                if (enviarFactura) {
+                    publish(80);
+                    SwingUtilities.invokeLater(() -> actualizarMensajeProgreso("Enviando factura por email..."));
+                    Thread.sleep(500);
+                }
+                
+                return ventaController.guardarVenta(venta, enviarFactura);
+            }
+            
+            @Override
+            protected void process(java.util.List<Integer> chunks) {
+                int progress = chunks.get(chunks.size() - 1);
+                progressBar.setIndeterminate(false);
+                progressBar.setValue(progress);
+            }
+            
+            @Override
+            protected void done() {
+                try {
+                    boolean exito = get();
+                    if (exito) {
+                        SwingUtilities.invokeLater(() -> {
+                            progressBar.setValue(100);
+                            actualizarMensajeProgreso("¡Venta completada con éxito!");
+                        });
+                        Thread.sleep(300);
+                        guardado = true;
+                        dispose();
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error al guardar venta: " + e.getMessage());
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(DialogVenta.this, 
+                        "Error al guardar: " + e.getMessage(), 
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    ocultarProgreso();
+                }
+            }
+        };
+        
+        worker.execute();
     }
-}
     
     public boolean isGuardado() {
         return guardado;

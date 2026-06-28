@@ -25,7 +25,6 @@ public class PanelCitas extends JPanel {
 
     private JTable tablaCitas;
     private DefaultTableModel model;
-    private JTextField txtBuscar;
     private JButton btnNuevo, btnEditar, btnEliminar, btnRefrescar;
     private JButton btnConfirmar, btnCancelar, btnCompletar, btnBuscar;
     private JLabel lblTotalRegistros;
@@ -34,7 +33,11 @@ public class PanelCitas extends JPanel {
     private JTextField txtFechaInicio;
     private JTextField txtFechaFin;
     
-    // Panel de alertas
+    private JComboBox<String> cbEstadoFiltro;
+    private JButton btnExportar;
+    private JPanel resumenPanel;
+    private JLabel lblProgramadas, lblConfirmadas, lblEnProceso, lblCanceladas, lblTotalHoy;
+    
     private PanelAlertasCitas panelAlertas;
     private JSplitPane splitPane;
 
@@ -47,7 +50,8 @@ public class PanelCitas extends JPanel {
     private Color accentRed = new Color(210, 80, 80);
     private Color accentOrange = new Color(230, 160, 50);
     private Color accentPurple = new Color(150, 80, 200);
-    private Color accentPink = new Color(200, 100, 150);
+
+    private JFrame parentFrame;
 
     public PanelCitas() {
         this.citaController = new CitaController();
@@ -55,39 +59,47 @@ public class PanelCitas extends JPanel {
         this.usuariosController = new UsuariosController();
         initComponents();
         
-        // Establecer fechas por defecto
         txtFechaInicio.setText(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
         txtFechaFin.setText(LocalDate.now().plusDays(7).format(DateTimeFormatter.ISO_LOCAL_DATE));
         
-        cargarCitas();
-        actualizarContador();
+        SwingUtilities.invokeLater(() -> {
+            cargarCitas();
+            actualizarContador();
+            actualizarResumenDiario();
+        });
     }
 
     private void initComponents() {
         setBackground(darkBg);
-        setLayout(new BorderLayout(15, 15));
-        setBorder(new EmptyBorder(20, 20, 20, 20));
+        setLayout(new BorderLayout(10, 10));
+        setBorder(new EmptyBorder(15, 15, 15, 15));
 
-        // Panel superior: Filtros
+        parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
 
-        // Panel de alertas
-        panelAlertas = new PanelAlertasCitas();
+        JPanel centerPanel = new JPanel(new BorderLayout(0, 8));
+        centerPanel.setBackground(darkBg);
 
-        // Panel central: Tabla
+        JPanel resumenPanel = createResumenDiarioPanel();
+        centerPanel.add(resumenPanel, BorderLayout.NORTH);
+
         JPanel tablePanel = createTablePanel();
 
-        // Crear split panel (tabla a la izquierda, alertas a la derecha)
+        panelAlertas = new PanelAlertasCitas();
+        panelAlertas.setPreferredSize(new Dimension(280, 0));
+
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tablePanel, panelAlertas);
-        splitPane.setResizeWeight(0.7);
-        splitPane.setDividerLocation(0.7);
+        splitPane.setResizeWeight(0.75);
+        splitPane.setDividerLocation(750);
         splitPane.setDividerSize(5);
         splitPane.setBackground(darkBg);
         splitPane.setBorder(BorderFactory.createEmptyBorder());
-        add(splitPane, BorderLayout.CENTER);
+        centerPanel.add(splitPane, BorderLayout.CENTER);
 
-        // Panel inferior: Contador
+        add(centerPanel, BorderLayout.CENTER);
+
         JPanel footerPanel = createFooterPanel();
         add(footerPanel, BorderLayout.SOUTH);
 
@@ -97,96 +109,112 @@ public class PanelCitas extends JPanel {
     private JPanel createHeaderPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(darkBg);
-        panel.setBorder(new EmptyBorder(0, 0, 10, 0));
+        panel.setBorder(new EmptyBorder(0, 0, 8, 0));
 
-        // Título
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         titlePanel.setBackground(darkBg);
         JLabel titleLabel = new JLabel("Gestión de Citas");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titleLabel.setForeground(textLight);
         titlePanel.add(titleLabel);
         panel.add(titlePanel, BorderLayout.NORTH);
 
-        // Filtros
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 5));
         filterPanel.setBackground(darkBg);
 
-        // Odontólogo
         JLabel lblOdontologo = new JLabel("Odontólogo:");
         lblOdontologo.setForeground(textGray);
-        lblOdontologo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblOdontologo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         filterPanel.add(lblOdontologo);
 
         cbOdontologo = new JComboBox<>();
         cbOdontologo.setBackground(new Color(50, 50, 55));
         cbOdontologo.setForeground(textLight);
-        cbOdontologo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cbOdontologo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         cbOdontologo.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        cbOdontologo.setPreferredSize(new Dimension(150, 30));
+        cbOdontologo.setPreferredSize(new Dimension(140, 28));
         cargarOdontologos();
         filterPanel.add(cbOdontologo);
 
-        // Paciente
         JLabel lblPaciente = new JLabel("Paciente:");
         lblPaciente.setForeground(textGray);
-        lblPaciente.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblPaciente.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         filterPanel.add(lblPaciente);
 
         cbPaciente = new JComboBox<>();
         cbPaciente.setBackground(new Color(50, 50, 55));
         cbPaciente.setForeground(textLight);
-        cbPaciente.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cbPaciente.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         cbPaciente.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        cbPaciente.setPreferredSize(new Dimension(150, 30));
+        cbPaciente.setPreferredSize(new Dimension(140, 28));
         cargarPacientes();
         filterPanel.add(cbPaciente);
 
-        // Fecha Inicio
-        JLabel lblFechaInicio = new JLabel("Fecha Inicio:");
+        JLabel lblEstado = new JLabel("Estado:");
+        lblEstado.setForeground(textGray);
+        lblEstado.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        filterPanel.add(lblEstado);
+
+        cbEstadoFiltro = new JComboBox<>(new String[]{
+            "Todos", 
+            Cita.ESTADO_PROGRAMADA, 
+            Cita.ESTADO_CONFIRMADA, 
+            Cita.ESTADO_EN_PROCESO, 
+            Cita.ESTADO_COMPLETADA, 
+            Cita.ESTADO_CANCELADA, 
+            Cita.ESTADO_NO_ASISTIO
+        });
+        cbEstadoFiltro.setBackground(new Color(50, 50, 55));
+        cbEstadoFiltro.setForeground(textLight);
+        cbEstadoFiltro.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        cbEstadoFiltro.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
+        cbEstadoFiltro.setPreferredSize(new Dimension(110, 28));
+        cbEstadoFiltro.addActionListener(e -> cargarCitas());
+        filterPanel.add(cbEstadoFiltro);
+
+        JLabel lblFechaInicio = new JLabel("Desde:");
         lblFechaInicio.setForeground(textGray);
-        lblFechaInicio.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblFechaInicio.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         filterPanel.add(lblFechaInicio);
 
         txtFechaInicio = new JTextField(10);
         txtFechaInicio.setBackground(new Color(50, 50, 55));
         txtFechaInicio.setForeground(textLight);
         txtFechaInicio.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        txtFechaInicio.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        txtFechaInicio.setPreferredSize(new Dimension(100, 30));
+        txtFechaInicio.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        txtFechaInicio.setPreferredSize(new Dimension(90, 28));
         filterPanel.add(txtFechaInicio);
 
-        // Fecha Fin
-        JLabel lblFechaFin = new JLabel("Fecha Fin:");
+        JLabel lblFechaFin = new JLabel("Hasta:");
         lblFechaFin.setForeground(textGray);
-        lblFechaFin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblFechaFin.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         filterPanel.add(lblFechaFin);
 
         txtFechaFin = new JTextField(10);
         txtFechaFin.setBackground(new Color(50, 50, 55));
         txtFechaFin.setForeground(textLight);
         txtFechaFin.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        txtFechaFin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        txtFechaFin.setPreferredSize(new Dimension(100, 30));
+        txtFechaFin.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        txtFechaFin.setPreferredSize(new Dimension(90, 28));
         filterPanel.add(txtFechaFin);
 
-        // Botones
-        btnBuscar = createActionButton("Buscar", accentBlue, 95);
+        btnBuscar = createActionButton("Buscar", accentBlue, 80);
         btnBuscar.addActionListener(e -> cargarCitas());
         filterPanel.add(btnBuscar);
 
-        btnRefrescar = createActionButton("Refrescar", accentPurple, 95);
+        btnRefrescar = createActionButton("⟳", accentPurple, 40);
+        btnRefrescar.setToolTipText("Restablecer filtros");
         btnRefrescar.addActionListener(e -> {
             txtFechaInicio.setText(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
             txtFechaFin.setText(LocalDate.now().plusDays(7).format(DateTimeFormatter.ISO_LOCAL_DATE));
             cbOdontologo.setSelectedIndex(0);
             cbPaciente.setSelectedIndex(0);
+            cbEstadoFiltro.setSelectedIndex(0);
             cargarCitas();
         });
         filterPanel.add(btnRefrescar);
 
-        // Botones rápidos de fecha
-        JButton btnHoy = createActionButton("Hoy", accentGreen, 70);
+        JButton btnHoy = createActionButton("Hoy", accentGreen, 60);
         btnHoy.addActionListener(e -> {
             txtFechaInicio.setText(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
             txtFechaFin.setText(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
@@ -194,7 +222,7 @@ public class PanelCitas extends JPanel {
         });
         filterPanel.add(btnHoy);
 
-        JButton btnSemana = createActionButton("Semana", accentOrange, 85);
+        JButton btnSemana = createActionButton("Semana", accentOrange, 75);
         btnSemana.addActionListener(e -> {
             txtFechaInicio.setText(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
             txtFechaFin.setText(LocalDate.now().plusDays(7).format(DateTimeFormatter.ISO_LOCAL_DATE));
@@ -202,12 +230,16 @@ public class PanelCitas extends JPanel {
         });
         filterPanel.add(btnSemana);
 
+        btnExportar = createActionButton("", new Color(100, 80, 200), 40);
+        btnExportar.setToolTipText("Exportar a CSV");
+        btnExportar.addActionListener(e -> exportarCitas());
+        filterPanel.add(btnExportar);
+
         panel.add(filterPanel, BorderLayout.CENTER);
 
-        // Botones de acción
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 5));
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 5));
         actionPanel.setBackground(darkBg);
-        actionPanel.setBorder(new EmptyBorder(5, 0, 0, 0));
+        actionPanel.setBorder(new EmptyBorder(2, 0, 0, 0));
 
         btnNuevo = createActionButton("Nuevo", accentGreen, 100);
         btnNuevo.addActionListener(e -> abrirFormularioCita(null));
@@ -222,7 +254,7 @@ public class PanelCitas extends JPanel {
         actionPanel.add(btnEliminar);
 
         JSeparator sep1 = new JSeparator(SwingConstants.VERTICAL);
-        sep1.setPreferredSize(new Dimension(2, 30));
+        sep1.setPreferredSize(new Dimension(2, 28));
         sep1.setBackground(new Color(60, 60, 65));
         actionPanel.add(sep1);
 
@@ -239,18 +271,11 @@ public class PanelCitas extends JPanel {
         actionPanel.add(btnCancelar);
 
         JSeparator sep2 = new JSeparator(SwingConstants.VERTICAL);
-        sep2.setPreferredSize(new Dimension(2, 30));
+        sep2.setPreferredSize(new Dimension(2, 28));
         sep2.setBackground(new Color(60, 60, 65));
         actionPanel.add(sep2);
 
-        JButton btnRecordatorios = new JButton("Recordatorios");
-        btnRecordatorios.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnRecordatorios.setBackground(new Color(100, 80, 200));
-        btnRecordatorios.setForeground(Color.WHITE);
-        btnRecordatorios.setBorderPainted(false);
-        btnRecordatorios.setFocusPainted(false);
-        btnRecordatorios.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnRecordatorios.setPreferredSize(new Dimension(120, 32));
+        JButton btnRecordatorios = createActionButton("Recordatorios", new Color(100, 80, 200), 130);
         btnRecordatorios.addActionListener(e -> enviarRecordatorios());
         actionPanel.add(btnRecordatorios);
 
@@ -259,12 +284,78 @@ public class PanelCitas extends JPanel {
         return panel;
     }
 
+    private JPanel createResumenDiarioPanel() {
+        resumenPanel = new JPanel(new GridLayout(1, 5, 8, 0));
+        resumenPanel.setBackground(darkBg);
+        resumenPanel.setBorder(new EmptyBorder(0, 0, 8, 0));
+        resumenPanel.setPreferredSize(new Dimension(0, 45));
+
+        lblProgramadas = createTarjetaResumen("Programadas", "0", new Color(100, 180, 255));
+        resumenPanel.add(lblProgramadas);
+
+        lblConfirmadas = createTarjetaResumen("Confirmadas", "0", new Color(80, 220, 140));
+        resumenPanel.add(lblConfirmadas);
+
+        lblEnProceso = createTarjetaResumen("En Proceso", "0", new Color(255, 200, 60));
+        resumenPanel.add(lblEnProceso);
+
+        lblCanceladas = createTarjetaResumen("Canceladas", "0", new Color(255, 120, 120));
+        resumenPanel.add(lblCanceladas);
+
+        lblTotalHoy = createTarjetaResumen("Total Hoy", "0", new Color(200, 150, 255));
+        resumenPanel.add(lblTotalHoy);
+
+        return resumenPanel;
+    }
+
+    private JLabel createTarjetaResumen(String titulo, String valor, Color color) {
+        JPanel panel = new JPanel(new BorderLayout(8, 0));
+        panel.setBackground(new Color(45, 45, 50));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(60, 60, 70), 1),
+            new EmptyBorder(6, 14, 6, 14)
+        ));
+
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        leftPanel.setBackground(new Color(45, 45, 50));
+
+        JLabel lblTitulo = new JLabel(titulo);
+        lblTitulo.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        lblTitulo.setForeground(Color.WHITE);
+        leftPanel.add(lblTitulo);
+
+        JLabel lblValor = new JLabel(valor);
+        lblValor.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblValor.setForeground(color);
+        lblValor.setHorizontalAlignment(SwingConstants.LEFT);
+        leftPanel.add(lblValor);
+
+        panel.add(leftPanel, BorderLayout.WEST);
+
+        return lblValor;
+    }
+
+    private void actualizarResumenDiario() {
+        try {
+            CitaController.CitaResumen resumen = citaController.getResumenCitas();
+            
+            lblProgramadas.setText(String.valueOf(resumen.programadas));
+            lblConfirmadas.setText(String.valueOf(resumen.confirmadas));
+            lblEnProceso.setText(String.valueOf(resumen.enProceso));
+            lblCanceladas.setText(String.valueOf(resumen.canceladas + resumen.noAsistio));
+            lblTotalHoy.setText(String.valueOf(resumen.totalHoy));
+            
+        } catch (Exception e) {
+            System.err.println("Error al actualizar resumen: " + e.getMessage());
+        }
+    }
+
     private JPanel createTablePanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(darkCard);
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(50, 50, 55), 1),
-            new EmptyBorder(10, 10, 10, 10)
+            new EmptyBorder(8, 8, 8, 8)
         ));
 
         String[] columnas = {"ID", "Fecha", "Hora", "Paciente", "Odontólogo", "Servicio", "Estado", "Nota"};
@@ -279,17 +370,16 @@ public class PanelCitas extends JPanel {
         tablaCitas.setBackground(new Color(45, 45, 50));
         tablaCitas.setForeground(textLight);
         tablaCitas.setGridColor(new Color(55, 55, 60));
-        tablaCitas.setRowHeight(32);
-        tablaCitas.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tablaCitas.setRowHeight(30);
+        tablaCitas.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         tablaCitas.getTableHeader().setBackground(new Color(50, 50, 55));
         tablaCitas.getTableHeader().setForeground(textLight);
-        tablaCitas.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tablaCitas.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         tablaCitas.setSelectionBackground(new Color(60, 60, 70));
         tablaCitas.setSelectionForeground(textLight);
         tablaCitas.setShowGrid(false);
         tablaCitas.setIntercellSpacing(new Dimension(0, 0));
 
-        // Renderer para colores de estado
         tablaCitas.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -335,7 +425,6 @@ public class PanelCitas extends JPanel {
             }
         });
 
-        // Doble click para editar
         tablaCitas.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -345,7 +434,6 @@ public class PanelCitas extends JPanel {
             }
         });
 
-        // Menú contextual
         JPopupMenu popupMenu = new JPopupMenu();
         JMenuItem itemEditar = new JMenuItem("Editar");
         itemEditar.addActionListener(e -> editarCita());
@@ -406,16 +494,16 @@ public class PanelCitas extends JPanel {
     private JPanel createFooterPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(darkBg);
-        panel.setPreferredSize(new Dimension(0, 40));
-        panel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        panel.setPreferredSize(new Dimension(0, 32));
+        panel.setBorder(new EmptyBorder(3, 10, 3, 10));
 
-        lblTotalRegistros = new JLabel("Total: 0 registros");
-        lblTotalRegistros.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblTotalRegistros = new JLabel("Mostrando 0 citas | Citas hoy: 0 | Pendientes: 0");
+        lblTotalRegistros.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         lblTotalRegistros.setForeground(textGray);
         panel.add(lblTotalRegistros, BorderLayout.WEST);
 
         JLabel lblInfo = new JLabel("Doble click para editar | Click derecho para opciones");
-        lblInfo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        lblInfo.setFont(new Font("Segoe UI", Font.PLAIN, 10));
         lblInfo.setForeground(textGray);
         panel.add(lblInfo, BorderLayout.EAST);
 
@@ -424,13 +512,13 @@ public class PanelCitas extends JPanel {
 
     private JButton createActionButton(String text, Color color, int width) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        btn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btn.setBackground(color);
         btn.setForeground(Color.WHITE);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setPreferredSize(new Dimension(width, 32));
+        btn.setPreferredSize(new Dimension(width, 28));
 
         btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
@@ -507,40 +595,50 @@ public class PanelCitas extends JPanel {
                 return;
             }
 
+            model.setRowCount(0);
+
             List<Cita> citas = citaController.listarPorRango(fechaInicio, fechaFin);
 
-            // Filtrar por odontólogo
-            String odontoSeleccion = (String) cbOdontologo.getSelectedItem();
-            if (odontoSeleccion != null && !odontoSeleccion.equals("Todos los odontólogos")) {
-                List<Usuario> odontologos = usuariosController.listarOdontologos();
-                if (odontologos != null) {
-                    for (Usuario u : odontologos) {
-                        if (u.getNombre().equals(odontoSeleccion)) {
-                            int id = u.getId();
-                            citas.removeIf(c -> c.getOdontologoId() != id);
-                            break;
+            if (citas != null && !citas.isEmpty()) {
+                String odontoSeleccion = (String) cbOdontologo.getSelectedItem();
+                if (odontoSeleccion != null && !odontoSeleccion.equals("Todos los odontólogos")) {
+                    List<Usuario> odontologos = usuariosController.listarOdontologos();
+                    if (odontologos != null) {
+                        for (Usuario u : odontologos) {
+                            if (u.getNombre().equals(odontoSeleccion)) {
+                                int id = u.getId();
+                                citas.removeIf(c -> c.getOdontologoId() != id);
+                                break;
+                            }
                         }
                     }
                 }
-            }
 
-            // Filtrar por paciente
-            String pacienteSeleccion = (String) cbPaciente.getSelectedItem();
-            if (pacienteSeleccion != null && !pacienteSeleccion.equals("Todos los pacientes")) {
-                List<Paciente> pacientes = pacienteController.listarTodos();
-                if (pacientes != null) {
-                    for (Paciente p : pacientes) {
-                        if (p.getNombreCompleto().equals(pacienteSeleccion)) {
-                            int id = p.getId();
-                            citas.removeIf(c -> c.getPacienteId() != id);
-                            break;
+                String pacienteSeleccion = (String) cbPaciente.getSelectedItem();
+                if (pacienteSeleccion != null && !pacienteSeleccion.equals("Todos los pacientes")) {
+                    List<Paciente> pacientes = pacienteController.listarTodos();
+                    if (pacientes != null) {
+                        for (Paciente p : pacientes) {
+                            if (p.getNombreCompleto().equals(pacienteSeleccion)) {
+                                int id = p.getId();
+                                citas.removeIf(c -> c.getPacienteId() != id);
+                                break;
+                            }
                         }
                     }
                 }
+
+                String estadoSeleccion = (String) cbEstadoFiltro.getSelectedItem();
+                if (estadoSeleccion != null && !estadoSeleccion.equals("Todos")) {
+                    String estadoFinal = estadoSeleccion;
+                    citas.removeIf(c -> !c.getEstado().equals(estadoFinal));
+                }
+
+                citaController.cargarTabla(model, citas);
             }
 
-            citaController.cargarTabla(model, citas);
             actualizarContador();
+            actualizarResumenDiario();
 
         } catch (Exception e) {
             System.err.println("Error al cargar citas: " + e.getMessage());
@@ -555,17 +653,32 @@ public class PanelCitas extends JPanel {
         int total = model.getRowCount();
         int totalHoy = citaController.contarCitasHoy();
         int pendientes = citaController.contarCitasPorEstado(Cita.ESTADO_PROGRAMADA)
-                + citaController.contarCitasPorEstado(Cita.ESTADO_CONFIRMADA);
+                + citaController.contarCitasPorEstado(Cita.ESTADO_CONFIRMADA)
+                + citaController.contarCitasPorEstado(Cita.ESTADO_EN_PROCESO);
         lblTotalRegistros.setText("Mostrando " + total + " citas | Citas hoy: " + totalHoy + " | Pendientes: " + pendientes);
     }
 
     private void abrirFormularioCita(Cita cita) {
-        DialogCita dialog = new DialogCita((JFrame) SwingUtilities.getWindowAncestor(this), cita != null);
-        dialog.setCita(cita);
-        dialog.setVisible(true);
-
-        if (dialog.isGuardado()) {
-            cargarCitas();
+        try {
+            JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
+            
+            System.out.println("🔄 [DEBUG] abrirFormularioCita() - Cita: " + (cita != null ? cita.getId() : "null"));
+            
+            // CREAR EL DIÁLOGO CON LA CITA DESDE EL CONSTRUCTOR
+            DialogCita dialog = new DialogCita(parent, cita != null, cita);
+            
+            dialog.setVisible(true);
+            
+            if (dialog.isGuardado()) {
+                cargarCitas();
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al abrir formulario: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "Error al abrir el formulario: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -579,9 +692,21 @@ public class PanelCitas extends JPanel {
         }
 
         int id = (int) model.getValueAt(row, 0);
+        System.out.println("🔍 [DEBUG] editarCita() - ID desde tabla: " + id);
+        
         Cita cita = citaController.buscarPorId(id);
         if (cita != null) {
+            System.out.println("🔍 [DEBUG] Cita encontrada:");
+            System.out.println("   ID: " + cita.getId());
+            System.out.println("   Paciente: " + cita.getPacienteNombre() + " (ID: " + cita.getPacienteId() + ")");
+            System.out.println("   Odontólogo: " + cita.getOdontologoNombre() + " (ID: " + cita.getOdontologoId() + ")");
+            System.out.println("   Servicio: " + cita.getServicioNombre() + " (ID: " + cita.getServicioId() + ")");
             abrirFormularioCita(cita);
+        } else {
+            System.err.println("❌ [DEBUG] Cita NO encontrada con ID: " + id);
+            JOptionPane.showMessageDialog(this,
+                "No se encontró la cita con ID: " + id,
+                "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -690,6 +815,66 @@ public class PanelCitas extends JPanel {
             JOptionPane.showMessageDialog(this,
                 "✅ Recordatorios enviados correctamente",
                 "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void exportarCitas() {
+        if (model.getRowCount() == 0) {
+            JOptionPane.showMessageDialog(this,
+                "No hay datos para exportar",
+                "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "¿Exportar las citas actuales a CSV?",
+            "Confirmar exportación",
+            JOptionPane.YES_NO_OPTION);
+        
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+        
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Guardar archivo CSV");
+        fileChooser.setSelectedFile(new java.io.File("citas_" + 
+            LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".csv"));
+        
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                java.io.File file = fileChooser.getSelectedFile();
+                if (!file.getName().toLowerCase().endsWith(".csv")) {
+                    file = new java.io.File(file.getAbsolutePath() + ".csv");
+                }
+                
+                java.io.PrintWriter writer = new java.io.PrintWriter(file, "UTF-8");
+                
+                writer.write('\ufeff');
+                writer.println("ID,Fecha,Hora,Paciente,Odontólogo,Servicio,Estado,Nota");
+                
+                for (int i = 0; i < model.getRowCount(); i++) {
+                    StringBuilder line = new StringBuilder();
+                    for (int j = 0; j < model.getColumnCount(); j++) {
+                        Object value = model.getValueAt(i, j);
+                        String text = value != null ? value.toString().replace(",", ";") : "";
+                        if (j > 0) line.append(",");
+                        line.append(text);
+                    }
+                    writer.println(line.toString());
+                }
+                
+                writer.close();
+                
+                JOptionPane.showMessageDialog(this,
+                    "✅ Citas exportadas correctamente a:\n" + file.getAbsolutePath() + 
+                    "\n\n" + model.getRowCount() + " registros exportados",
+                    "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                    
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this,
+                    "Error al exportar: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 }

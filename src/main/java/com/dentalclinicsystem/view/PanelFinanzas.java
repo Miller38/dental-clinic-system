@@ -23,9 +23,15 @@ public class PanelFinanzas extends JPanel {
     private JLabel lblTotalRegistros, lblTotalHoy, lblTotalMes;
     private JButton btnNuevo, btnVerDetalle, btnAnular, btnRefrescar;
     private JButton btnReenviarFactura;
-    private JDateChooser dateInicio;  // Cambiado de JTextField a JDateChooser
-    private JDateChooser dateFin;     // Cambiado de JTextField a JDateChooser
+    private JDateChooser dateInicio;
+    private JDateChooser dateFin;
     private JButton btnBuscar;
+    
+    // ======================= COMPONENTES DE PROGRESO =======================
+    private JProgressBar progressBar;
+    private JLabel lblEstado;
+    private JPanel progressPanel;
+    // ============================================================================
     
     private Color darkBg = new Color(30, 30, 35);
     private Color darkCard = new Color(40, 40, 45);
@@ -86,7 +92,6 @@ public class PanelFinanzas extends JPanel {
         lblInicio.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         actionPanel.add(lblInicio);
         
-        // 🔥 NUEVO: JDateChooser en lugar de JTextField
         dateInicio = new JDateChooser();
         dateInicio.setDateFormatString("yyyy-MM-dd");
         dateInicio.setBackground(new Color(50, 50, 55));
@@ -101,7 +106,6 @@ public class PanelFinanzas extends JPanel {
         lblFin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         actionPanel.add(lblFin);
         
-        // 🔥 NUEVO: JDateChooser en lugar de JTextField
         dateFin = new JDateChooser();
         dateFin.setDateFormatString("yyyy-MM-dd");
         dateFin.setBackground(new Color(50, 50, 55));
@@ -111,7 +115,6 @@ public class PanelFinanzas extends JPanel {
         dateFin.setPreferredSize(new Dimension(120, 28));
         actionPanel.add(dateFin);
         
-        // Establecer fechas por defecto
         establecerFechasPorDefecto();
         
         btnBuscar = createActionButton("Buscar", accentBlue);
@@ -121,17 +124,6 @@ public class PanelFinanzas extends JPanel {
             actualizarResumen();
         });
         actionPanel.add(btnBuscar);
-        
-//        btnRefrescar = createActionButton(" ", accentPurple);
-//        btnRefrescar.setPreferredSize(new Dimension(40, 32));
-//        btnRefrescar.setToolTipText("Restablecer fechas al mes actual");
-//        btnRefrescar.addActionListener(e -> {
-//            System.out.println("Restableciendo fechas...");
-//            establecerFechasPorDefecto();
-//            cargarVentas();
-//            actualizarResumen();
-//        });
-//        actionPanel.add(btnRefrescar);
         
         JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
         sep.setPreferredSize(new Dimension(2, 30));
@@ -164,55 +156,29 @@ public class PanelFinanzas extends JPanel {
         return panel;
     }
     
-    // 🔥 NUEVO MÉTODO: Establecer fechas por defecto
-    private void establecerFechasPorDefecto() {
-        try {
-            // Primer día del mes actual
-            LocalDate inicioMes = LocalDate.now().withDayOfMonth(1);
-            // Hoy
-            LocalDate hoy = LocalDate.now();
-            
-            // Convertir LocalDate a Date
-            Date fechaInicio = java.sql.Date.valueOf(inicioMes);
-            Date fechaFin = java.sql.Date.valueOf(hoy);
-            
-            dateInicio.setDate(fechaInicio);
-            dateFin.setDate(fechaFin);
-            
-            System.out.println("📅 Fechas establecidas: " + inicioMes + " - " + hoy);
-        } catch (Exception e) {
-            System.err.println("❌ Error al establecer fechas: " + e.getMessage());
-            e.printStackTrace();
-        }
+    // ======================= PANEL DE PROGRESO =======================
+    private JPanel createProgressPanel() {
+        progressPanel = new JPanel(new BorderLayout(10, 5));
+        progressPanel.setBackground(darkBg);
+        progressPanel.setBorder(new EmptyBorder(5, 10, 5, 10));
+        progressPanel.setVisible(false);
+        
+        progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setPreferredSize(new Dimension(0, 18));
+        progressBar.setBackground(new Color(50, 50, 55));
+        progressBar.setForeground(accentBlue);
+        progressBar.setBorderPainted(false);
+        progressPanel.add(progressBar, BorderLayout.CENTER);
+        
+        lblEstado = new JLabel("Cargando...");
+        lblEstado.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblEstado.setForeground(accentBlue);
+        progressPanel.add(lblEstado, BorderLayout.SOUTH);
+        
+        return progressPanel;
     }
-    
-    // 🔥 MÉTODO: Obtener fecha como String desde JDateChooser
-    private String getFechaInicio() {
-        try {
-            Date fecha = dateInicio.getDate();
-            if (fecha != null) {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                return sdf.format(fecha);
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Error al obtener fecha inicio: " + e.getMessage());
-        }
-        return LocalDate.now().withDayOfMonth(1).toString();
-    }
-    
-    // 🔥 MÉTODO: Obtener fecha como String desde JDateChooser
-    private String getFechaFin() {
-        try {
-            Date fecha = dateFin.getDate();
-            if (fecha != null) {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                return sdf.format(fecha);
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Error al obtener fecha fin: " + e.getMessage());
-        }
-        return LocalDate.now().toString();
-    }
+    // =========================================================================
     
     private JPanel createResumenPanel() {
         JPanel panel = new JPanel(new GridLayout(1, 3, 15, 0));
@@ -307,8 +273,54 @@ public class PanelFinanzas extends JPanel {
         
         panel.add(scroll, BorderLayout.CENTER);
         
+        // ======================= AGREGAR PANEL DE PROGRESO =======================
+        JPanel progressPanel = createProgressPanel();
+        panel.add(progressPanel, BorderLayout.SOUTH);
+        // =========================================================================
+        
         return panel;
     }
+    
+    // ======================= MÉTODOS DE PROGRESO =======================
+    
+    private void mostrarProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            progressPanel.setVisible(true);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText(mensaje);
+            setControlesEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        });
+    }
+    
+    private void ocultarProgreso() {
+        SwingUtilities.invokeLater(() -> {
+            progressPanel.setVisible(false);
+            progressBar.setIndeterminate(true);
+            lblEstado.setText("");
+            setControlesEnabled(true);
+            setCursor(Cursor.getDefaultCursor());
+        });
+    }
+    
+    private void actualizarMensajeProgreso(String mensaje) {
+        SwingUtilities.invokeLater(() -> {
+            lblEstado.setText(mensaje);
+        });
+    }
+    
+    private void setControlesEnabled(boolean enabled) {
+        btnNuevo.setEnabled(enabled);
+        btnVerDetalle.setEnabled(enabled);
+        btnAnular.setEnabled(enabled);
+        btnBuscar.setEnabled(enabled);
+        btnReenviarFactura.setEnabled(enabled);
+        dateInicio.setEnabled(enabled);
+        dateFin.setEnabled(enabled);
+        tablaVentas.setEnabled(enabled);
+    }
+    
+    // ========================================================================
     
     private JButton createActionButton(String text, Color color) {
         JButton btn = new JButton(text);
@@ -331,80 +343,155 @@ public class PanelFinanzas extends JPanel {
         
         return btn;
     }
-   
-    // ========== MÉTODOS PRINCIPALES ==========
+    
+    private void establecerFechasPorDefecto() {
+        try {
+            LocalDate inicioMes = LocalDate.now().withDayOfMonth(1);
+            LocalDate hoy = LocalDate.now();
+            
+            Date fechaInicio = java.sql.Date.valueOf(inicioMes);
+            Date fechaFin = java.sql.Date.valueOf(hoy);
+            
+            dateInicio.setDate(fechaInicio);
+            dateFin.setDate(fechaFin);
+            
+            System.out.println("📅 Fechas establecidas: " + inicioMes + " - " + hoy);
+        } catch (Exception e) {
+            System.err.println("❌ Error al establecer fechas: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private String getFechaInicio() {
+        try {
+            Date fecha = dateInicio.getDate();
+            if (fecha != null) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                return sdf.format(fecha);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error al obtener fecha inicio: " + e.getMessage());
+        }
+        return LocalDate.now().withDayOfMonth(1).toString();
+    }
+    
+    private String getFechaFin() {
+        try {
+            Date fecha = dateFin.getDate();
+            if (fecha != null) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                return sdf.format(fecha);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error al obtener fecha fin: " + e.getMessage());
+        }
+        return LocalDate.now().toString();
+    }
+    
+    // ========== MÉTODOS PRINCIPALES CON PROGRESO ==========
     
     private void cargarVentas() {
-        try {
-            // 🔥 OBTENER FECHAS USANDO LOS NUEVOS MÉTODOS
-            String inicio = getFechaInicio();
-            String fin = getFechaFin();
+        mostrarProgreso("Cargando ventas...");
+        
+        // ✅ CREAR SWINGWORKER CORRECTAMENTE
+        SwingWorker<List<Venta>, Integer> worker = new SwingWorker<List<Venta>, Integer>() {
             
-            System.out.println("🔍 ===== CARGANDO VENTAS =====");
-            System.out.println("🔍 Desde: " + inicio);
-            System.out.println("🔍 Hasta: " + fin);
-            
-            // 🔥 LIMPIAR TABLA
-            model.setRowCount(0);
-            model.fireTableDataChanged();
-            
-            // 🔥 OBTENER VENTAS
-            List<Venta> ventas = controller.listarPorRango(inicio, fin);
-            
-            System.out.println("📋 Ventas encontradas: " + (ventas != null ? ventas.size() : 0));
-            
-            if (ventas != null && !ventas.isEmpty()) {
-                System.out.println("📋 Cargando " + ventas.size() + " ventas en la tabla");
+            @Override
+            protected List<Venta> doInBackground() throws Exception {
+                String inicio = getFechaInicio();
+                String fin = getFechaFin();
                 
-                for (Venta v : ventas) {
-                    // Verificar email del paciente
-                    String emailStatus = "Sin email";
-                    try {
-                        com.dentalclinicsystem.dao.PacienteDAO pacienteDAO = new com.dentalclinicsystem.dao.PacienteDAO();
-                        com.dentalclinicsystem.model.Paciente paciente = pacienteDAO.obtenerPorId(v.getPacienteId());
-                        if (paciente != null && paciente.getEmail() != null && !paciente.getEmail().isEmpty()) {
-                            emailStatus = "   Enviable";
-                        }
-                    } catch (Exception e) {
-                        emailStatus = "️ Error";
-                    }
-                    
-                    model.addRow(new Object[]{
-                        v.getId(),
-                        v.getFecha() != null ? v.getFecha().substring(0, 10) : "",
-                        v.getPacienteNombre() != null ? v.getPacienteNombre() : "N/A",
-                        v.getTipoComprobanteTexto(),
-                        v.getTotalFormateado(),
-                        v.getMetodoPagoTexto(),
-                        v.getEstadoTexto(),
-                        emailStatus
-                    });
-                    System.out.println("   ✅ Agregada venta ID: " + v.getId() + " | Total: " + v.getTotalFormateado());
+                System.out.println("🔍 Desde: " + inicio);
+                System.out.println("🔍 Hasta: " + fin);
+                
+                // Simular progreso
+                for (int i = 0; i < 5; i++) {
+                    Thread.sleep(80);
+                    // ✅ publish() envía el progreso al EDT automáticamente
+                    publish((i + 1) * 20);
                 }
-            } else {
-                System.out.println("📋 No hay ventas en el rango seleccionado");
+                
+                // ✅ Operación real en segundo plano
+                return controller.listarPorRango(inicio, fin);
             }
             
-            // 🔥 FORZAR ACTUALIZACIÓN DE LA TABLA
-            model.fireTableDataChanged();
-            tablaVentas.revalidate();
-            tablaVentas.repaint();
+            // ✅ process() se ejecuta en el EDT automáticamente
+            @Override
+            protected void process(java.util.List<Integer> chunks) {
+                // Tomar el último progreso publicado
+                int progress = chunks.get(chunks.size() - 1);
+                
+                // ✅ Actualizar UI - SEGURO porque estamos en EDT
+                progressBar.setIndeterminate(false);
+                progressBar.setValue(progress);
+                lblEstado.setText("Cargando ventas... " + progress + "%");
+            }
             
-            // 🔥 ACTUALIZAR RESUMEN
-            actualizarResumen();
-            
-        } catch (Exception e) {
-            System.err.println("❌ Error al cargar ventas: " + e.getMessage());
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, 
-                "Error al cargar ventas: " + e.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
-        }
+            @Override
+            protected void done() {
+                try {
+                    List<Venta> ventas = get();
+                    
+                    // ✅ Limpiar tabla
+                    model.setRowCount(0);
+                    model.fireTableDataChanged();
+                    
+                    if (ventas != null && !ventas.isEmpty()) {
+                        System.out.println("📋 Ventas encontradas: " + ventas.size());
+                        
+                        for (Venta v : ventas) {
+                            String emailStatus = "Sin email";
+                            try {
+                                com.dentalclinicsystem.dao.PacienteDAO pacienteDAO = 
+                                    new com.dentalclinicsystem.dao.PacienteDAO();
+                                com.dentalclinicsystem.model.Paciente paciente = 
+                                    pacienteDAO.obtenerPorId(v.getPacienteId());
+                                if (paciente != null && paciente.getEmail() != null 
+                                    && !paciente.getEmail().isEmpty()) {
+                                    emailStatus = "   Enviable";
+                                }
+                            } catch (Exception e) {
+                                emailStatus = "️ Error";
+                            }
+                            
+                            model.addRow(new Object[]{
+                                v.getId(),
+                                v.getFecha() != null ? v.getFecha().substring(0, 10) : "",
+                                v.getPacienteNombre() != null ? v.getPacienteNombre() : "N/A",
+                                v.getTipoComprobanteTexto(),
+                                v.getTotalFormateado(),
+                                v.getMetodoPagoTexto(),
+                                v.getEstadoTexto(),
+                                emailStatus
+                            });
+                        }
+                        
+                        model.fireTableDataChanged();
+                        tablaVentas.revalidate();
+                        tablaVentas.repaint();
+                    }
+                    
+                    actualizarResumen();
+                    
+                } catch (Exception e) {
+                    System.err.println("❌ Error al cargar ventas: " + e.getMessage());
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(PanelFinanzas.this, 
+                        "Error al cargar ventas: " + e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                } finally {
+                    // ✅ Siempre ocultar progreso
+                    ocultarProgreso();
+                }
+            }
+        };
+        
+        // ✅ Ejecutar el worker
+        worker.execute();
     }
     
     private void actualizarResumen() {
         try {
-            // 🔥 OBTENER TOTALES REALES DIRECTAMENTE DE LA BD
             double totalHoy = controller.obtenerTotalHoy();
             double totalMes = controller.obtenerTotalMes();
             int totalVentas = model.getRowCount();
@@ -426,7 +513,6 @@ public class PanelFinanzas extends JPanel {
         
         if (dialog.isGuardado()) {
             System.out.println("🔄 Actualizando panel después de guardar venta...");
-            // 🔥 RECARGAR TODOS LOS DATOS CON UN PEQUEÑO DELAY
             SwingUtilities.invokeLater(() -> {
                 cargarVentas();
                 actualizarResumen();
@@ -468,18 +554,18 @@ public class PanelFinanzas extends JPanel {
         sb.append("Total: ").append(venta.getTotalFormateado()).append("\n");
         sb.append("Estado: ").append(venta.getEstadoTexto());
         
-        sb.append("\n\n FACTURA:\n");
+        sb.append("\n\n📧 FACTURA:\n");
         try {
             com.dentalclinicsystem.dao.PacienteDAO pacienteDAO = new com.dentalclinicsystem.dao.PacienteDAO();
             com.dentalclinicsystem.model.Paciente paciente = pacienteDAO.obtenerPorId(venta.getPacienteId());
             if (paciente != null && paciente.getEmail() != null && !paciente.getEmail().isEmpty()) {
                 sb.append("Email: ").append(paciente.getEmail());
-                sb.append("\n Se puede reenviar la factura");
+                sb.append("\n✅ Se puede reenviar la factura");
             } else {
-                sb.append("️ El paciente no tiene email registrado");
+                sb.append("⚠️ El paciente no tiene email registrado");
             }
         } catch (Exception e) {
-            sb.append("️ Error al obtener información del paciente");
+            sb.append("❌ Error al obtener información del paciente");
         }
         
         JTextArea textArea = new JTextArea(sb.toString());
@@ -520,10 +606,33 @@ public class PanelFinanzas extends JPanel {
             JOptionPane.WARNING_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            if (controller.anularVenta(id)) {
-                cargarVentas();
-                actualizarResumen();
-            }
+            mostrarProgreso("Anulando venta...");
+            
+            SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+                @Override
+                protected Boolean doInBackground() throws Exception {
+                    Thread.sleep(300);
+                    return controller.anularVenta(id);
+                }
+                
+                @Override
+                protected void done() {
+                    try {
+                        if (get()) {
+                            cargarVentas();
+                            actualizarResumen();
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error al anular: " + e.getMessage());
+                        JOptionPane.showMessageDialog(PanelFinanzas.this, 
+                            "Error al anular: " + e.getMessage(),
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    } finally {
+                        ocultarProgreso();
+                    }
+                }
+            };
+            worker.execute();
         }
     }
     
@@ -548,7 +657,22 @@ public class PanelFinanzas extends JPanel {
             JOptionPane.YES_NO_OPTION);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            controller.reenviarFactura(id);
+            mostrarProgreso("Reenviando factura...");
+            
+            SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    Thread.sleep(500);
+                    controller.reenviarFactura(id);
+                    return null;
+                }
+                
+                @Override
+                protected void done() {
+                    ocultarProgreso();
+                }
+            };
+            worker.execute();
         }
     }
 }

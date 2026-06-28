@@ -3,12 +3,9 @@ package com.dentalclinicsystem.controller;
 import com.dentalclinicsystem.config.ConexionSQLite;
 import com.dentalclinicsystem.model.Cita;
 import com.dentalclinicsystem.model.Paciente;
-import com.dentalclinicsystem.model.Servicio;
 import com.dentalclinicsystem.model.Venta;
 
 import java.sql.*;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,9 +15,6 @@ public class ReporteController {
     // ============== REPORTE DE PACIENTES =============================
     // ================================================================
     
-    /**
-     * Obtiene todos los pacientes para reporte
-     */
     public List<Paciente> getReportePacientes() {
         List<Paciente> pacientes = new ArrayList<>();
         String sql = "SELECT * FROM pacientes WHERE estado = 1 ORDER BY apellido, nombre";
@@ -50,9 +44,6 @@ public class ReporteController {
         return pacientes;
     }
     
-    /**
-     * Obtiene pacientes por rango de fechas
-     */
     public List<Paciente> getReportePacientesPorFechas(String fechaInicio, String fechaFin) {
         List<Paciente> pacientes = new ArrayList<>();
         String sql = "SELECT * FROM pacientes WHERE estado = 1 AND fecha_registro BETWEEN ? AND ? ORDER BY apellido, nombre";
@@ -85,11 +76,8 @@ public class ReporteController {
         return pacientes;
     }
     
-    /**
-     * Obtiene estadísticas de pacientes (hombres/mujeres)
-     */
     public int[] getEstadisticasPacientes() {
-        int[] stats = new int[2]; // [hombres, mujeres]
+        int[] stats = new int[2];
         String sql = "SELECT genero, COUNT(*) as total FROM pacientes WHERE estado = 1 GROUP BY genero";
         
         try (Connection conn = ConexionSQLite.conectar();
@@ -112,9 +100,6 @@ public class ReporteController {
         return stats;
     }
     
-    /**
-     * Obtiene pacientes nuevos por mes
-     */
     public int[] getPacientesPorMes() {
         int[] meses = new int[12];
         String sql = "SELECT strftime('%m', fecha_registro) as mes, COUNT(*) as total FROM pacientes " +
@@ -140,9 +125,6 @@ public class ReporteController {
     // ============== REPORTE DE CITAS ================================
     // ================================================================
     
-    /**
-     * Obtiene todas las citas para reporte
-     */
     public List<Cita> getReporteCitas(String fechaInicio, String fechaFin) {
         List<Cita> citas = new ArrayList<>();
         String sql = "SELECT c.*, p.nombre || ' ' || p.apellido as paciente_nombre, " +
@@ -183,11 +165,8 @@ public class ReporteController {
         return citas;
     }
     
-    /**
-     * Obtiene estadísticas de citas por estado
-     */
     public int[] getEstadisticasCitas() {
-        int[] stats = new int[6]; // programadas, confirmadas, en_proceso, completadas, canceladas, no_asistio
+        int[] stats = new int[6];
         String sql = "SELECT estado, COUNT(*) as total FROM citas GROUP BY estado";
         
         try (Connection conn = ConexionSQLite.conectar();
@@ -214,28 +193,60 @@ public class ReporteController {
     }
     
     /**
-     * Obtiene citas por odontólogo
+     * Obtiene citas por odontólogo - VERSIÓN DEFINITIVA
+     * Muestra todos los usuarios con citas que NO son administradores
      */
     public List<Object[]> getCitasPorOdontologo(String fechaInicio, String fechaFin) {
         List<Object[]> resultados = new ArrayList<>();
+        
+        // Obtener TODOS los usuarios con citas
         String sql = "SELECT u.nombre as odontologo, COUNT(*) as total " +
-                     "FROM citas c JOIN usuarios u ON c.odontologo_id = u.id " +
+                     "FROM citas c " +
+                     "JOIN usuarios u ON c.odontologo_id = u.id " +
                      "WHERE c.fecha BETWEEN ? AND ? " +
-                     "GROUP BY u.nombre ORDER BY total DESC";
+                     "GROUP BY u.nombre " +
+                     "ORDER BY total DESC";
         
         try (Connection conn = ConexionSQLite.conectar();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, fechaInicio);
-            pstmt.setString(2, fechaFin);
+            pstmt.setString(2, fechaFin + " 23:59:59");
             ResultSet rs = pstmt.executeQuery();
             
+            // Lista de administradores a excluir
+            List<String> excluir = new ArrayList<>();
+            excluir.add("Miller");
+            excluir.add("admin");
+            excluir.add("Administrador");
+            
             while (rs.next()) {
-                resultados.add(new Object[]{rs.getString("odontologo"), rs.getInt("total")});
+                String nombre = rs.getString("odontologo");
+                int total = rs.getInt("total");
+                
+                // Excluir administradores por nombre
+                boolean esAdmin = false;
+                for (String admin : excluir) {
+                    if (nombre.equalsIgnoreCase(admin)) {
+                        esAdmin = true;
+                        break;
+                    }
+                }
+                
+                if (!esAdmin && total > 0) {
+                    resultados.add(new Object[]{nombre, total});
+                }
+            }
+            
+            if (resultados.isEmpty()) {
+                System.out.println("⚠️ No hay citas en el período: " + fechaInicio + " a " + fechaFin);
+            } else {
+                System.out.println("✅ " + resultados.size() + " odontólogos con citas encontrados");
             }
             
         } catch (SQLException e) {
             System.err.println("❌ Error al obtener citas por odontólogo: " + e.getMessage());
+            e.printStackTrace();
         }
         return resultados;
     }
@@ -244,9 +255,6 @@ public class ReporteController {
     // ============== REPORTE DE VENTAS ===============================
     // ================================================================
     
-    /**
-     * Obtiene ventas para reporte
-     */
     public List<Venta> getReporteVentas(String fechaInicio, String fechaFin) {
         List<Venta> ventas = new ArrayList<>();
         String sql = "SELECT v.*, p.nombre || ' ' || p.apellido as paciente_nombre " +
@@ -282,9 +290,6 @@ public class ReporteController {
         return ventas;
     }
     
-    /**
-     * Obtiene ingresos por día para gráfica
-     */
     public List<Object[]> getIngresosPorDia(String fechaInicio, String fechaFin) {
         List<Object[]> resultados = new ArrayList<>();
         String sql = "SELECT fecha, SUM(total) as total FROM ventas " +
@@ -312,9 +317,6 @@ public class ReporteController {
         return resultados;
     }
     
-    /**
-     * Obtiene ingresos por método de pago
-     */
     public List<Object[]> getIngresosPorMetodoPago(String fechaInicio, String fechaFin) {
         List<Object[]> resultados = new ArrayList<>();
         String sql = "SELECT metodo_pago, SUM(total) as total FROM ventas " +
@@ -342,9 +344,6 @@ public class ReporteController {
     // ============== REPORTE DE SERVICIOS ============================
     // ================================================================
     
-    /**
-     * Obtiene servicios más solicitados
-     */
     public List<Object[]> getServiciosMasSolicitados(String fechaInicio, String fechaFin) {
         List<Object[]> resultados = new ArrayList<>();
         String sql = "SELECT s.nombre, COUNT(*) as total FROM citas c " +
@@ -373,9 +372,6 @@ public class ReporteController {
     // ============== REPORTE DE INVENTARIO ===========================
     // ================================================================
     
-    /**
-     * Obtiene insumos con stock bajo
-     */
     public List<Object[]> getInsumosStockBajo() {
         List<Object[]> resultados = new ArrayList<>();
         String sql = "SELECT nombre, codigo, stock, stock_minimo FROM insumos " +
@@ -400,9 +396,10 @@ public class ReporteController {
         return resultados;
     }
     
-    /**
-     * Obtiene resumen general del sistema
-     */
+    // ================================================================
+    // ============== RESÚMEN GENERAL =================================
+    // ================================================================
+    
     public String[] getResumenGeneral() {
         String[] resumen = new String[6];
         

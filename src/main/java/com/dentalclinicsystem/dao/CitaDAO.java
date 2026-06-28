@@ -377,44 +377,53 @@ public class CitaDAO {
         }
     }
 
-   /**
- * Verifica si existe conflicto de horario para un odontólogo
- * @param odontologoId ID del odontólogo
- * @param fecha Fecha de la cita
- * @param hora Hora de la cita
- * @param duracion Duración en minutos
- * @param idExcluir ID de la cita a excluir (0 si es nueva)
- * @return true si hay conflicto, false si está disponible
+  /**
+ * Verifica si existe conflicto de horario para un odontólogo (versión Java)
  */
 public boolean existeConflicto(int odontologoId, String fecha, String hora, int duracion, int idExcluir) {
-    String sql = "SELECT COUNT(*) FROM citas WHERE odontologo_id = ? AND fecha = ? " +
-                 "AND estado NOT IN ('CANCELADA', 'COMPLETADA') " +
-                 "AND id != ? " +  // 🔥 EXCLUIR LA CITA ACTUAL
-                 "AND ((hora <= ? AND datetime(fecha || ' ' || hora, '+' || duracion || ' minutes') > datetime(?)) " +
-                 "OR (hora >= ? AND hora < datetime(?, '+' || ? || ' minutes')))";
-
-    try (Connection conn = ConexionSQLite.conectar();
-         PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-        pstmt.setInt(1, odontologoId);
-        pstmt.setString(2, fecha);
-        pstmt.setInt(3, idExcluir);  // 🔥 Excluir la cita actual
-        pstmt.setString(4, hora);
-        pstmt.setString(5, hora);
-        pstmt.setString(6, hora);
-        pstmt.setString(7, hora);
-        pstmt.setInt(8, duracion);
-
-        ResultSet rs = pstmt.executeQuery();
-        if (rs.next()) {
-            return rs.getInt(1) > 0;
+    // Obtener todas las citas del odontólogo en esa fecha
+    List<Cita> citas = obtenerPorOdontologo(odontologoId, fecha);
+    
+    String horaFinNueva = calcularHoraFin(hora, duracion);
+    
+    for (Cita cita : citas) {
+        // Saltar la cita que estamos editando
+        if (cita.getId() == idExcluir) {
+            continue;
         }
-
-    } catch (SQLException e) {
-        System.err.println("❌ Error al verificar conflicto: " + e.getMessage());
-        e.printStackTrace();
+        
+        String horaExistente = cita.getHora();
+        String horaFinExistente = calcularHoraFin(horaExistente, cita.getDuracion());
+        
+        // Verificar si hay intersección
+        // Dos intervalos [hora, horaFin] y [horaExistente, horaFinExistente] se superponen si:
+        // hora < horaFinExistente Y horaExistente < horaFin
+        if (hora.compareTo(horaFinExistente) < 0 && horaExistente.compareTo(horaFinNueva) < 0) {
+            return true; // Hay conflicto
+        }
     }
-    return false;
+    
+    return false; // No hay conflicto
+}
+
+/**
+ * Calcula la hora de fin sumando la duración
+ */
+private String calcularHoraFin(String horaInicio, int duracion) {
+    try {
+        String[] partes = horaInicio.split(":");
+        int horas = Integer.parseInt(partes[0]);
+        int minutos = Integer.parseInt(partes[1]);
+        minutos += duracion;
+        while (minutos >= 60) {
+            minutos -= 60;
+            horas++;
+        }
+        if (horas >= 24) horas -= 24;
+        return String.format("%02d:%02d", horas, minutos);
+    } catch (Exception e) {
+        return horaInicio;
+    }
 }
 
     public List<String> getHorasOcupadas(int odontologoId, String fecha) {
