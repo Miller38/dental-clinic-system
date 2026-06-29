@@ -1,13 +1,48 @@
 package com.dentalclinicsystem.config;
 
-import com.dentalclinicsystem.config.ActualizacionConfig;
 import javax.swing.*;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 
-
 public class ActualizadorApp {
+
+    // ================================================================
+    // 🔥 NUEVO: Iniciar verificación automática al cargar la app
+    // ================================================================
+    private static boolean verificacionIniciada = false;
+
+    /**
+     * Inicia la verificación automática de actualizaciones
+     * Debe llamarse UNA SOLA VEZ al iniciar la aplicación
+     * 
+     * @param parent El JFrame padre (puede ser null)
+     */
+    public static void iniciarVerificacionAutomatica(JFrame parent) {
+        if (verificacionIniciada) {
+            return; // Ya se inició
+        }
+        verificacionIniciada = true;
+        
+        System.out.println("🔄 Iniciando sistema de actualizaciones automáticas...");
+        
+        // Verificar inmediatamente al iniciar
+        verificarActualizacion(parent);
+        
+        // Programar verificaciones periódicas (cada 24 horas)
+        java.util.Timer timer = new java.util.Timer();
+        timer.schedule(new java.util.TimerTask() {
+            @Override
+            public void run() {
+                System.out.println("🔄 Verificando actualizaciones automáticas (programado)...");
+                verificarActualizacion(null); // No necesitamos el parent para verificaciones programadas
+            }
+        }, 24 * 60 * 60 * 1000, 24 * 60 * 60 * 1000); // Cada 24 horas
+        
+        System.out.println("✅ Sistema de actualizaciones iniciado");
+        System.out.println("   📅 Verificación inmediata: completada");
+        System.out.println("   ⏰ Próxima verificación: en 24 horas");
+    }
 
     public static void verificarActualizacion(JFrame parent) {
         new SwingWorker<Void, Void>() {
@@ -17,9 +52,15 @@ public class ActualizadorApp {
                     String repo = ActualizacionConfig.getRepo();
                     String versionActual = ActualizacionConfig.getVersion();
 
-                    System.out.println("Buscando actualizaciones...");
-                    System.out.println("Repo: " + repo);
-                    System.out.println("Version actual: " + versionActual);
+                    System.out.println("🔍 Buscando actualizaciones...");
+                    System.out.println("   📦 Repo: " + repo);
+                    System.out.println("   📌 Version actual: " + versionActual);
+
+                    // Validar que el repo no esté vacío
+                    if (repo == null || repo.isEmpty() || repo.equals("null")) {
+                        System.out.println("⚠️ Repositorio no configurado. Saltando verificación.");
+                        return null;
+                    }
 
                     String apiUrl = "https://api.github.com/repos/" + repo + "/releases/latest";
                     URL url = URI.create(apiUrl).toURL();
@@ -30,7 +71,7 @@ public class ActualizadorApp {
 
                     int responseCode = conn.getResponseCode();
                     if (responseCode != 200) {
-                        System.out.println("Error al consultar GitHub: HTTP " + responseCode);
+                        System.out.println("⚠️ Error al consultar GitHub: HTTP " + responseCode);
                         conn.disconnect();
                         return null;
                     }
@@ -43,27 +84,28 @@ public class ActualizadorApp {
                     String nombreArchivoRemoto = extractFileNameFromUrl(downloadUrl);
 
                     if (versionRemota == null || downloadUrl == null) {
-                        System.out.println("No se pudo obtener la información de versión");
+                        System.out.println("⚠️ No se pudo obtener la información de versión");
                         return null;
                     }
                     
-                    System.out.println("Version actual: " + versionActual);
-                    System.out.println("Version remota: " + versionRemota);
-                    System.out.println("Archivo remoto: " + nombreArchivoRemoto);
-                    System.out.println("URL descarga: " + downloadUrl);
+                    System.out.println("   📌 Version remota: " + versionRemota);
+                    System.out.println("   📁 Archivo remoto: " + nombreArchivoRemoto);
                     
                     if (versionRemota.startsWith("v")) {
                         versionRemota = versionRemota.substring(1);
                     }
 
                     if (esVersionNueva(versionActual, versionRemota)) {
+                        System.out.println("🆕 ¡Nueva versión disponible! " + versionActual + " → " + versionRemota);
                         mostrarDialogoActualizacion(parent, versionActual, versionRemota, downloadUrl, nombreArchivoRemoto);
                     } else {
-                        System.out.println("La aplicacion esta actualizada");
+                        System.out.println("✅ La aplicación está actualizada (v" + versionActual + ")");
                     }
 
+                } catch (MalformedURLException e) {
+                    System.err.println("❌ URL inválida: " + e.getMessage());
                 } catch (Exception e) {
-                    System.err.println("Error al verificar actualizaciones:");
+                    System.err.println("❌ Error al verificar actualizaciones:");
                     e.printStackTrace();
                 }
                 return null;
@@ -99,25 +141,24 @@ public class ActualizadorApp {
                 if (urlEnd == -1) break;
                 
                 String url = json.substring(urlStart, urlEnd);
-                // Aceptar .jar O cualquier ejecutable
                 if (url.endsWith(".jar") || url.endsWith(".exe")) {
-                    System.out.println("URL encontrada: " + url);
+                    System.out.println("   🔗 URL descarga: " + url);
                     return url;
                 }
                 
                 lastIndex = urlEnd;
             }
             
-            System.err.println("No se encontró ningún archivo .jar o .exe en los assets");
+            System.err.println("⚠️ No se encontró ningún archivo .jar o .exe en los assets");
             return null;
         } catch (Exception e) {
-            System.err.println("Error al extraer URL de descarga: " + e.getMessage());
+            System.err.println("❌ Error al extraer URL de descarga: " + e.getMessage());
             return null;
         }
     }
     
     private static String extractFileNameFromUrl(String url) {
-        if (url == null) return "DentalClinicSytem.jar";
+        if (url == null) return "DentalClinicSystem.jar";
         String[] parts = url.split("/");
         return parts[parts.length - 1];
     }
@@ -139,20 +180,26 @@ public class ActualizadorApp {
             }
             return false;
         } catch (NumberFormatException e) {
-            System.err.println("Error al comparar versiones: " + e.getMessage());
+            System.err.println("❌ Error al comparar versiones: " + e.getMessage());
             return false;
         }
     }
 
     private static void mostrarDialogoActualizacion(JFrame parent, String versionActual,
             String versionRemota, String downloadUrl, String nombreArchivo) {
+        
+        // Si parent es null, usar un JFrame temporal para el diálogo
+        JFrame dialogParent = parent != null ? parent : new JFrame();
+        
         SwingUtilities.invokeLater(() -> {
-            int respuesta = JOptionPane.showConfirmDialog(parent,
-                    "<html><body style='width: 300px;'>"
-                    + "<h3>¡Nueva versión disponible!</h3>"
+            int respuesta = JOptionPane.showConfirmDialog(dialogParent,
+                    "<html><body style='width: 350px;'>"
+                    + "<h3>🆕 ¡Nueva versión disponible!</h3>"
                     + "<p>Versión actual: <b>" + versionActual + "</b><br>"
                     + "Nueva versión: <b>" + versionRemota + "</b><br>"
                     + "Archivo: <b>" + nombreArchivo + "</b></p>"
+                    + "<p style='color: #666; font-size: 12px;'>"
+                    + "La actualización se descargará e instalará automáticamente.</p>"
                     + "<p>¿Desea actualizar ahora?</p>"
                     + "</body></html>",
                     "Actualización disponible",
@@ -160,7 +207,7 @@ public class ActualizadorApp {
                     JOptionPane.INFORMATION_MESSAGE);
 
             if (respuesta == JOptionPane.YES_OPTION) {
-                descargarYActualizar(parent, downloadUrl, versionRemota, nombreArchivo);
+                descargarYActualizar(dialogParent, downloadUrl, versionRemota, nombreArchivo);
             }
         });
     }
@@ -177,15 +224,15 @@ public class ActualizadorApp {
         new Thread(() -> {
             try {
                 String tempDir = System.getProperty("java.io.tmpdir");
-                // Usar el nombre original del archivo descargado
                 Path nuevoJarPath = Paths.get(tempDir, nombreArchivoRemoto);
 
-                System.out.println("Descargando desde: " + downloadUrl);
-                System.out.println("Guardando como: " + nuevoJarPath);
+                System.out.println("📥 Descargando desde: " + downloadUrl);
+                System.out.println("📁 Guardando como: " + nuevoJarPath);
+                
                 URL url = URI.create(downloadUrl).toURL();
                 Files.copy(url.openStream(), nuevoJarPath, StandardCopyOption.REPLACE_EXISTING);
 
-                System.out.println("Descarga completada en: " + nuevoJarPath);
+                System.out.println("✅ Descarga completada en: " + nuevoJarPath);
 
                 crearScriptActualizacion(nuevoJarPath.toAbsolutePath().toString(), 
                                         nuevaVersion, nombreArchivoRemoto);
@@ -194,8 +241,8 @@ public class ActualizadorApp {
                     progressDialog.dispose();
                     JOptionPane.showMessageDialog(parent,
                             "<html><body>"
-                            + "<p>La actualización se completará al reiniciar la aplicación.</p>"
-                            + "<p>La aplicación se cerrará ahora.</p>"
+                            + "<p>✅ La actualización se completará al reiniciar la aplicación.</p>"
+                            + "<p>🔄 La aplicación se cerrará ahora.</p>"
                             + "</body></html>",
                             "Actualización lista",
                             JOptionPane.INFORMATION_MESSAGE);
@@ -204,12 +251,12 @@ public class ActualizadorApp {
                 });
 
             } catch (Exception e) {
-                System.err.println("Error en descarga: " + e.getMessage());
+                System.err.println("❌ Error en descarga: " + e.getMessage());
                 e.printStackTrace();
                 SwingUtilities.invokeLater(() -> {
                     progressDialog.dispose();
                     JOptionPane.showMessageDialog(parent,
-                            "Error al descargar la actualización:\n" + e.getMessage(),
+                            "❌ Error al descargar la actualización:\n" + e.getMessage(),
                             "Error",
                             JOptionPane.ERROR_MESSAGE);
                 });
@@ -227,35 +274,46 @@ public class ActualizadorApp {
             String comando;
             String repo = ActualizacionConfig.getRepo();
             
-            // Determinar el nombre del JAR actual (ejecutable)
             String jarActual = getCurrentJarName();
 
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
                 scriptPath = currentDir + File.separator + "update.bat";
                 comando = "@echo off\n"
+                        + "echo ========================================\n"
+                        + "echo  ACTUALIZANDO DENTAL CLINIC SYSTEM\n"
+                        + "echo ========================================\n"
                         + "timeout /t 2 /nobreak > nul\n"
-                        + "echo Actualizando DentalClinicSystem...\n"
-                        + "echo Copiando nuevo archivo...\n"
+                        + "echo 📦 Copiando nuevo archivo...\n"
                         + "copy /Y \"" + nuevoJarPath + "\" \"" + currentDir + "\\" + jarActual + "\"\n"
-                        + "echo Actualizando version...\n"
+                        + "echo 📝 Actualizando version...\n"
                         + "echo app.version=" + nuevaVersion + " > \"" + currentDir + "\\app.properties\"\n"
                         + "echo app.repo=" + repo + " >> \"" + currentDir + "\\app.properties\"\n"
-                        + "echo Limpiando archivos temporales...\n"
+                        + "echo 🧹 Limpiando archivos temporales...\n"
                         + "del \"" + nuevoJarPath + "\" 2>nul\n"
-                        + "echo Actualizacion completada!\n"
-                        + "echo Iniciando aplicacion...\n"
+                        + "echo ========================================\n"
+                        + "echo  ✅ ACTUALIZACION COMPLETADA\n"
+                        + "echo ========================================\n"
+                        + "echo 🚀 Iniciando aplicacion...\n"
                         + "start javaw -jar \"" + currentDir + "\\" + jarActual + "\"\n"
                         + "del \"%~f0\"\n";
             } else {
                 scriptPath = currentDir + File.separator + "update.sh";
                 comando = "#!/bin/bash\n"
+                        + "echo '========================================'\n"
+                        + "echo ' ACTUALIZANDO DENTAL CLINIC SYSTEM'\n"
+                        + "echo '========================================'\n"
                         + "sleep 2\n"
-                        + "echo 'Actualizando DentalClinicSystem...'\n"
+                        + "echo '📦 Copiando nuevo archivo...'\n"
                         + "cp \"" + nuevoJarPath + "\" \"" + currentDir + "/" + jarActual + "\"\n"
+                        + "echo '📝 Actualizando version...'\n"
                         + "echo \"app.version=" + nuevaVersion + "\" > \"" + currentDir + "/app.properties\"\n"
                         + "echo \"app.repo=" + repo + "\" >> \"" + currentDir + "/app.properties\"\n"
+                        + "echo '🧹 Limpiando archivos temporales...'\n"
                         + "rm \"" + nuevoJarPath + "\"\n"
-                        + "echo 'Actualizacion completada!'\n"
+                        + "echo '========================================'\n"
+                        + "echo ' ✅ ACTUALIZACION COMPLETADA'\n"
+                        + "echo '========================================'\n"
+                        + "echo '🚀 Iniciando aplicacion...'\n"
                         + "java -jar \"" + currentDir + "/" + jarActual + "\" &\n"
                         + "rm -- \"$0\"\n";
             }
@@ -266,10 +324,11 @@ public class ActualizadorApp {
                 new ProcessBuilder("chmod", "+x", scriptPath).start();
             }
             
+            System.out.println("📝 Script de actualización creado: " + scriptPath);
             Runtime.getRuntime().exec(scriptPath);
             
         } catch (IOException e) {
-            System.err.println("Error al crear script: " + e.getMessage());
+            System.err.println("❌ Error al crear script: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -283,8 +342,8 @@ public class ActualizadorApp {
                             .getPath();
             return new File(path).getName();
         } catch (Exception e) {
-            System.err.println("Error obteniendo nombre del JAR actual: " + e.getMessage());
-            return "DentalClinicSystem.jar"; // Valor por defecto
+            System.err.println("⚠️ Error obteniendo nombre del JAR actual: " + e.getMessage());
+            return "DentalClinicSystem.jar";
         }
     }
 }
