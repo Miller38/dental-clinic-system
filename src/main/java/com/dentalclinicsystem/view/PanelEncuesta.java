@@ -719,21 +719,38 @@ public class PanelEncuesta extends JPanel {
     /**
      * Obtiene el email destino de forma segura (nunca retorna null)
      */
-    private String obtenerEmailDestinoSeguro() {
-        try {
-            ConfiguracionService config = ConfiguracionService.getInstance();
-            String email = config.getEmailDestino();
-            
-            if (email != null && !email.isEmpty() && !email.equals("null")) {
-                return email;
-            }
-        } catch (Exception e) {
-            System.err.println("⚠️ Error obteniendo email destino: " + e.getMessage());
+   /**
+ * Obtiene el email destino de forma segura
+ * 🔥 MODIFICADO: Usa el email destino del administrador, NO el remitente
+ */
+private String obtenerEmailDestinoSeguro() {
+    try {
+        ConfiguracionService config = ConfiguracionService.getInstance();
+        
+        // 🔥 PRIMERO: Intentar obtener el email destino configurado
+        String email = config.getEmailDestino();
+        
+        // Si existe y no es el valor por defecto, usarlo
+        if (email != null && !email.isEmpty() && 
+            !email.equals("admin@dentalclinic.com") &&
+            !email.equals("null")) {
+            return email;
         }
         
-        // Valor por defecto seguro
-        return "admin@dentalclinic.com";
+        // 🔥 SEGUNDO: Si no está configurado, usar el email del administrador
+        // que está en el archivo config.properties
+        String adminEmail = System.getProperty("email.admin.destino");
+        if (adminEmail != null && !adminEmail.isEmpty()) {
+            return adminEmail;
+        }
+        
+    } catch (Exception e) {
+        System.err.println("⚠️ Error obteniendo email destino: " + e.getMessage());
     }
+    
+    // 🔥 ÚLTIMO RECURSO: Valor por defecto (el email del administrador)
+    return "millergutierrez38@gmail.com";
+}
     
     private void limpiarFormulario() {
         txtNombre.setText("");

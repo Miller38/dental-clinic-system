@@ -10,6 +10,13 @@ public class ConfiguracionService {
     private Properties props;
     private boolean configuracionCargada = false;
     
+    // ================================================================
+    // 🔥 EMAIL DEL ADMINISTRADOR (DESTINO DE ENCUESTAS) - FIJO Y OCULTO
+    // ================================================================
+    // Este email es donde el desarrollador/administrador recibe las encuestas
+    // NO se muestra en la interfaz y NO puede ser modificado por el cliente
+    private static final String EMAIL_ADMIN_DESTINO = "millergutierrez38@gmail.com";
+    
     private ConfiguracionService() {
         props = new Properties();
         cargarConfiguracion();
@@ -25,9 +32,6 @@ public class ConfiguracionService {
     private void cargarConfiguracion() {
         System.out.println("🔍 Buscando config.properties...");
         
-        // ============================================
-        // OPCIÓN 1: Cargar desde ruta ABSOLUTA
-        // ============================================
         String[] rutasPosibles = {
             "D:\\DentalClinicSystem\\src\\config.properties",
             "C:\\DentalClinicSystem\\src\\config.properties",
@@ -51,16 +55,10 @@ public class ConfiguracionService {
             }
         }
         
-        // ============================================
-        // OPCIÓN 2: Cargar desde CLASSPATH
-        // ============================================
+        // Cargar desde classpath
         try {
-            java.net.URL url = getClass().getClassLoader().getResource("config.properties");
-            System.out.println("📁 Buscando en classpath: " + url);
-            
             try (InputStream input = getClass().getClassLoader()
                     .getResourceAsStream("config.properties")) {
-                
                 if (input != null) {
                     props.load(input);
                     configuracionCargada = true;
@@ -73,34 +71,11 @@ public class ConfiguracionService {
             System.err.println("❌ Error cargando desde classpath: " + e.getMessage());
         }
         
-        // ============================================
-        // OPCIÓN 3: Cargar desde VARIABLES DE ENTORNO
-        // ============================================
+        // Cargar desde variables de entorno
         cargarDesdeVariablesEntorno();
         
-        // ============================================
-        // OPCIÓN 4: Mostrar ERROR si no hay configuración
-        // ============================================
         if (!configuracionCargada) {
             System.err.println("❌ ERROR CRÍTICO: No se pudo cargar la configuración");
-            System.err.println("📁 Crea el archivo config.properties en:");
-            System.err.println("   D:\\DentalClinicSystem\\src\\config.properties");
-            System.err.println("");
-            System.err.println("📝 Contenido del archivo:");
-            System.err.println("   email.user=tu_correo@gmail.com");
-            System.err.println("   email.password=tu_contraseña_app");
-            System.err.println("   email.destino=destino@gmail.com");
-            System.err.println("   smtp.host=smtp.gmail.com");
-            System.err.println("   smtp.port=587");
-            System.err.println("   smtp.tls=true");
-            System.err.println("   iva.porcentaje=19");
-            System.err.println("   empresa.nombre=Mi Clinica");
-            System.err.println("");
-            System.err.println("⚠️ O configura variables de entorno:");
-            System.err.println("   EMAIL_USER");
-            System.err.println("   EMAIL_PASSWORD");
-            System.err.println("   EMAIL_DESTINO");
-            
             configuracionCargada = false;
         }
     }
@@ -110,34 +85,12 @@ public class ConfiguracionService {
         if (emailUser != null && !emailUser.isEmpty()) {
             props.setProperty("email.user", emailUser);
             configuracionCargada = true;
-            System.out.println("✅ EMAIL_USER cargado desde variable de entorno");
         }
         
         String emailPassword = System.getenv("EMAIL_PASSWORD");
         if (emailPassword != null && !emailPassword.isEmpty()) {
             props.setProperty("email.password", emailPassword);
             configuracionCargada = true;
-            System.out.println("✅ EMAIL_PASSWORD cargado desde variable de entorno");
-        }
-        
-        String emailDestino = System.getenv("EMAIL_DESTINO");
-        if (emailDestino != null && !emailDestino.isEmpty()) {
-            props.setProperty("email.destino", emailDestino);
-        }
-        
-        String smtpHost = System.getenv("SMTP_HOST");
-        if (smtpHost != null && !smtpHost.isEmpty()) {
-            props.setProperty("smtp.host", smtpHost);
-        }
-        
-        String smtpPort = System.getenv("SMTP_PORT");
-        if (smtpPort != null && !smtpPort.isEmpty()) {
-            props.setProperty("smtp.port", smtpPort);
-        }
-        
-        String smtpTLS = System.getenv("SMTP_TLS");
-        if (smtpTLS != null && !smtpTLS.isEmpty()) {
-            props.setProperty("smtp.tls", smtpTLS);
         }
     }
     
@@ -145,12 +98,13 @@ public class ConfiguracionService {
         System.out.println("📧 EMAIL_USER: " + props.getProperty("email.user"));
         System.out.println("📧 EMAIL_PASSWORD: " + 
             (props.getProperty("email.password") != null ? "✅ Cargada" : "❌ No cargada"));
-        System.out.println("📧 EMAIL_DESTINO: " + props.getProperty("email.destino"));
+        System.out.println("📧 EMAIL_ADMIN_DESTINO: " + getEmailAdminDestino());
         System.out.println("🏢 EMPRESA: " + props.getProperty("empresa.nombre"));
-        System.out.println("📊 IVA: " + props.getProperty("iva.porcentaje") + "%");
     }
     
-    // ========== MÉTODOS GET EXISTENTES ==========
+    // ================================================================
+    // ========== MÉTODOS GET =========================================
+    // ================================================================
     
     public String getEmailUser() {
         return props.getProperty("email.user");
@@ -160,8 +114,28 @@ public class ConfiguracionService {
         return props.getProperty("email.password");
     }
     
+    /**
+     * 🔥 RETORNA EL EMAIL DEL ADMINISTRADOR (DESTINO DE ENCUESTAS)
+     * Este email es FIJO y NO se muestra en la interfaz
+     * El cliente NO puede modificarlo
+     */
+    public String getEmailAdminDestino() {
+        // Intentar obtener de properties (por si se configuró manualmente)
+        String email = props.getProperty("email.admin.destino");
+        if (email != null && !email.isEmpty()) {
+            return email;
+        }
+        // Si no está en properties, usar el valor por defecto (FIJO)
+        return EMAIL_ADMIN_DESTINO;
+    }
+    
+    /**
+     * 🔥 MÉTODO DEPRECADO - Mantenido por compatibilidad
+     * Ahora retorna el email del administrador (mismo que getEmailAdminDestino)
+     */
+    @Deprecated
     public String getEmailDestino() {
-        return props.getProperty("email.destino", "admin@dentalclinic.com");
+        return getEmailAdminDestino();
     }
     
     public String getEmailInfo() {
@@ -223,43 +197,35 @@ public class ConfiguracionService {
     }
     
     public boolean esConfiguracionValida() {
-        if (!configuracionCargada) {
-            return false;
-        }
-        String user = getEmailUser();
-        return user != null && !user.isEmpty() && 
-               !user.equals("tu_correo@gmail.com") &&
-               credencialesConfiguradas();
+        return configuracionCargada && credencialesConfiguradas();
     }
     
-    // =========================================================
-    // ========== NUEVOS MÉTODOS PARA GUARDAR CONFIGURACIÓN =====
-    // =========================================================
+    // ================================================================
+    // ========== GUARDAR CONFIGURACIÓN ===============================
+    // ================================================================
     
     /**
-     * Guarda la configuración de correo en el archivo properties
-     * Este método es llamado desde el PanelConfiguracion cuando el usuario
-     * hace clic en "Guardar Configuración"
-     * 
-     * @param email Correo electrónico del remitente
-     * @param password Contraseña de aplicación (no la de Gmail)
-     * @param smtpHost Servidor SMTP (ej: smtp.gmail.com)
-     * @param smtpPort Puerto SMTP (587 para TLS, 465 para SSL)
-     * @param usarTLS true para usar TLS, false para SSL
-     * @throws Exception Si hay error al guardar el archivo
+     * Guarda la configuración de correo del REMITENTE (cliente)
+     * 🔥 NO MODIFICA el email del administrador (destino)
      */
     public void guardarConfiguracionCorreo(String email, String password, 
                                            String smtpHost, String smtpPort, 
                                            boolean usarTLS) throws Exception {
         
-        // Actualizar propiedades en memoria
+        // Guardar email del remitente (lo configura el cliente)
         props.setProperty("email.user", email);
         props.setProperty("email.password", password);
         props.setProperty("smtp.host", smtpHost);
         props.setProperty("smtp.port", smtpPort);
         props.setProperty("smtp.tls", String.valueOf(usarTLS));
         
-        // Intentar guardar en diferentes ubicaciones
+        // 🔥 NUNCA MODIFICAR email.admin.destino - es FIJO
+        // Si no existe, establecerlo (solo la primera vez)
+        if (props.getProperty("email.admin.destino") == null) {
+            props.setProperty("email.admin.destino", EMAIL_ADMIN_DESTINO);
+        }
+        
+        // Guardar en archivo
         String[] rutasGuardado = {
             System.getProperty("user.dir") + "\\src\\config.properties",
             System.getProperty("user.dir") + "\\config.properties",
@@ -269,13 +235,11 @@ public class ConfiguracionService {
         boolean guardado = false;
         for (String ruta : rutasGuardado) {
             try {
-                // Crear directorio si no existe
                 java.io.File file = new java.io.File(ruta);
                 if (file.getParentFile() != null) {
                     file.getParentFile().mkdirs();
                 }
                 
-                // Guardar archivo
                 try (FileOutputStream fos = new FileOutputStream(ruta)) {
                     props.store(fos, "Configuración actualizada - Dental Clinic System");
                     System.out.println("✅ Configuración guardada en: " + ruta);
@@ -293,18 +257,10 @@ public class ConfiguracionService {
         }
     }
     
-    /**
-     * Verifica si hay configuración de correo guardada
-     * @return true si las credenciales están configuradas correctamente
-     */
     public boolean tieneConfiguracionCorreo() {
         return credencialesConfiguradas();
     }
     
-    /**
-     * Obtiene la configuración completa de correo como un Map
-     * @return Map con todas las propiedades de correo
-     */
     public java.util.Map<String, String> getConfiguracionCorreo() {
         java.util.Map<String, String> config = new java.util.HashMap<>();
         config.put("email", getEmailUser());
@@ -313,6 +269,7 @@ public class ConfiguracionService {
         config.put("smtp.port", getSmtpPort());
         config.put("smtp.tls", props.getProperty("smtp.tls", "true"));
         config.put("empresa.nombre", getEmpresaNombre());
+        // 🔥 NO incluir email.admin.destino en la configuración visible
         return config;
     }
 }

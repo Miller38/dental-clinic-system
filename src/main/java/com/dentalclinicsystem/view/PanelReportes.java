@@ -23,37 +23,36 @@ public class PanelReportes extends JPanel {
 
     private ReporteController controller;
 
-    // Componentes ORIGINALES
+    // Componentes
     private JTable tablaPacientes, tablaCitas, tablaVentas;
     private DefaultTableModel modelPacientes, modelCitas, modelVentas;
-    private JLabel lblTotalPacientes, lblTotalCitas, lblTotalVentas, lblTotalIngresos;
-    private JLabel lblResumenPacientes, lblResumenCitas, lblResumenVentas, lblResumenServicios;
-    private JLabel lblResumenInsumos, lblResumenStockBajo;
+    private JLabel lblTotalPacientes, lblTotalCitas, lblTotalVentas;
+    private JLabel lblResumenPacientes, lblResumenCitas, lblResumenVentas;
+    private JLabel lblResumenServicios, lblResumenInsumos, lblResumenStockBajo;
     private JDateChooser dateInicio;
     private JDateChooser dateFin;
     private JTextField txtCitasInicio, txtCitasFin;
     private JTextField txtVentasInicio, txtVentasFin;
-
-    // NUEVOS COMPONENTES
     private ChartPanel chartPanel;
     private JComboBox<String> cbGraficas;
 
     // Colores
-    private Color darkBg = new Color(30, 30, 35);
-    private Color darkCard = new Color(40, 40, 45);
-    private Color textLight = new Color(220, 220, 230);
-    private Color textGray = new Color(150, 150, 165);
-    private Color accentBlue = new Color(70, 130, 200);
-    private Color accentGreen = new Color(60, 180, 110);
-    private Color accentOrange = new Color(230, 160, 50);
-    private Color accentPurple = new Color(150, 80, 200);
+    private final Color darkBg = new Color(30, 30, 35);
+    private final Color darkCard = new Color(40, 40, 45);
+    private final Color textLight = new Color(220, 220, 230);
+    private final Color textGray = new Color(150, 150, 165);
+    private final Color accentBlue = new Color(70, 130, 200);
+    private final Color accentGreen = new Color(60, 180, 110);
+    private final Color accentOrange = new Color(230, 160, 50);
+    private final Color accentPurple = new Color(150, 80, 200);
+    private final Color accentRed = new Color(210, 80, 80);
 
-    private Color hoverPacientes = new Color(70, 130, 200);
-    private Color hoverCitas = new Color(60, 180, 110);
-    private Color hoverVentas = new Color(230, 160, 50);
-    private Color hoverServicios = new Color(150, 80, 200);
-    private Color hoverInsumos = new Color(200, 100, 150);
-    private Color hoverStockBajo = new Color(210, 80, 80);
+    private final Color hoverPacientes = new Color(70, 130, 200);
+    private final Color hoverCitas = new Color(60, 180, 110);
+    private final Color hoverVentas = new Color(230, 160, 50);
+    private final Color hoverServicios = new Color(150, 80, 200);
+    private final Color hoverInsumos = new Color(200, 100, 150);
+    private final Color hoverStockBajo = new Color(210, 80, 80);
 
     public PanelReportes() {
         this.controller = new ReporteController();
@@ -63,6 +62,10 @@ public class PanelReportes extends JPanel {
         cargarReporteCitas();
         cargarReporteVentas();
     }
+
+    // ================================================================
+    // ============== INICIALIZACIÓN ===================================
+    // ================================================================
 
     private void initComponents() {
         setBackground(darkBg);
@@ -75,6 +78,7 @@ public class PanelReportes extends JPanel {
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setBackground(darkBg);
         tabbedPane.setForeground(textLight);
+        tabbedPane.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         tabbedPane.addTab(" Pacientes", createPanelPacientes());
         tabbedPane.addTab(" Citas", createPanelCitas());
@@ -88,11 +92,13 @@ public class PanelReportes extends JPanel {
     // ================================================================
     // ============== PANEL DE PACIENTES ===============================
     // ================================================================
+
     private JPanel createPanelPacientes() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(darkBg);
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
+        // Panel de filtros
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
         filterPanel.setBackground(darkBg);
 
@@ -101,13 +107,12 @@ public class PanelReportes extends JPanel {
         filterPanel.add(lblInicio);
 
         dateInicio = new JDateChooser();
-        dateInicio.setDate(java.util.Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
+        dateInicio.setDate(Date.from(LocalDate.now().withDayOfMonth(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()));
         dateInicio.setDateFormatString("yyyy-MM-dd");
         dateInicio.setBackground(new Color(50, 50, 55));
         dateInicio.setForeground(textLight);
         dateInicio.getCalendarButton().setBackground(new Color(60, 60, 65));
         dateInicio.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        dateInicio.setToolTipText("📅 Fecha de inicio del período (YYYY-MM-DD)");
         filterPanel.add(dateInicio);
 
         JLabel lblFin = new JLabel("Hasta:");
@@ -121,43 +126,25 @@ public class PanelReportes extends JPanel {
         dateFin.setForeground(textLight);
         dateFin.getCalendarButton().setBackground(new Color(60, 60, 65));
         dateFin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        dateFin.setToolTipText("📅 Fecha de fin del período (YYYY-MM-DD)");
         filterPanel.add(dateFin);
 
         JButton btnFiltrar = createActionButton(" Filtrar", accentBlue);
-        btnFiltrar.setToolTipText("🔍 Filtrar pacientes por rango de fechas");
-        btnFiltrar.addActionListener(e -> {
-            String inicio = dateInicio.getDate() != null ? 
-                FechaUtil.dateToString(dateInicio.getDate()) : "";
-            String fin = dateFin.getDate() != null ? 
-                FechaUtil.dateToString(dateFin.getDate()) : "";
-            
-            String error = FechaUtil.validarRangoFechas(inicio, fin);
-            if (error != null) {
-                JOptionPane.showMessageDialog(this, error, 
-                    "Error de Validación", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            cargarReportePacientes();
-        });
+        btnFiltrar.addActionListener(e -> cargarReportePacientes());
         filterPanel.add(btnFiltrar);
 
-        JButton btnExportar = createActionButton("Exportar", accentGreen);
-        btnExportar.setToolTipText("Exportar reporte a Excel, PDF o CSV");
+        JButton btnExportar = createActionButton(" Exportar", accentGreen);
         btnExportar.addActionListener(e -> {
-            if (modelPacientes.getRowCount() == 0) {
-                JOptionPane.showMessageDialog(this, 
-                    "No hay datos para exportar", 
-                    "Advertencia", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
+            if (modelPacientes.getRowCount() > 0) {
+                ExportUtil.exportarConDialogo(modelPacientes, "Reporte_Pacientes", this);
+            } else {
+                JOptionPane.showMessageDialog(this, "No hay datos para exportar", "Advertencia", JOptionPane.WARNING_MESSAGE);
             }
-            ExportUtil.exportarConDialogo(modelPacientes, "Reporte_Pacientes", this);
         });
         filterPanel.add(btnExportar);
 
         panel.add(filterPanel, BorderLayout.NORTH);
 
+        // Tabla
         String[] columnas = {"ID", "Nombre", "Documento", "Teléfono", "Email", "Género", "Edad", "Registro"};
         modelPacientes = new DefaultTableModel(columnas, 0) {
             @Override
@@ -182,11 +169,11 @@ public class PanelReportes extends JPanel {
 
         panel.add(scroll, BorderLayout.CENTER);
 
+        // Footer
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         footerPanel.setBackground(darkBg);
-        lblTotalPacientes = new JLabel("Total : 0 pacientes");
+        lblTotalPacientes = new JLabel("Total: 0 pacientes");
         lblTotalPacientes.setForeground(textGray);
-        lblTotalPacientes.setToolTipText("Total de pacientes en el período seleccionado");
         footerPanel.add(lblTotalPacientes);
         panel.add(footerPanel, BorderLayout.SOUTH);
 
@@ -195,25 +182,26 @@ public class PanelReportes extends JPanel {
 
     private void cargarReportePacientes() {
         modelPacientes.setRowCount(0);
-        
-        String inicio = dateInicio.getDate() != null ? 
-            FechaUtil.dateToString(dateInicio.getDate()) : FechaUtil.primerDiaDelMes();
-        String fin = dateFin.getDate() != null ? 
-            FechaUtil.dateToString(dateFin.getDate()) : FechaUtil.hoy();
+
+        String inicio = dateInicio.getDate() != null ?
+                FechaUtil.dateToString(dateInicio.getDate()) : FechaUtil.primerDiaDelMes();
+        String fin = dateFin.getDate() != null ?
+                FechaUtil.dateToString(dateFin.getDate()) : FechaUtil.hoy();
 
         List<Paciente> pacientes = controller.getReportePacientesPorFechas(inicio, fin);
 
         if (pacientes != null) {
             for (Paciente p : pacientes) {
                 modelPacientes.addRow(new Object[]{
-                    p.getId(),
-                    p.getNombreCompleto(),
-                    p.getNumeroDocumento(),
-                    p.getTelefono(),
-                    p.getEmail() != null ? p.getEmail() : "",
-                    p.getGenero() != null ? p.getGenero() : "",
-                    p.getEdad() > 0 ? p.getEdad() : "",
-                    p.getFechaRegistro() != null ? p.getFechaRegistro().substring(0, 10) : ""
+                        p.getId(),
+                        p.getNombreCompleto(),
+                        p.getNumeroDocumento(),
+                        p.getTelefono(),
+                        p.getEmail() != null ? p.getEmail() : "",
+                        p.getGenero() != null ? p.getGenero() : "",
+                        p.getEdad() > 0 ? p.getEdad() : "",
+                        p.getFechaRegistro() != null && p.getFechaRegistro().length() >= 10 ?
+                                p.getFechaRegistro().substring(0, 10) : ""
                 });
             }
         }
@@ -224,11 +212,13 @@ public class PanelReportes extends JPanel {
     // ================================================================
     // ============== PANEL DE CITAS ===================================
     // ================================================================
+
     private JPanel createPanelCitas() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(darkBg);
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
+        // Panel de filtros
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
         filterPanel.setBackground(darkBg);
 
@@ -241,7 +231,7 @@ public class PanelReportes extends JPanel {
         txtCitasInicio.setBackground(new Color(50, 50, 55));
         txtCitasInicio.setForeground(textLight);
         txtCitasInicio.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        txtCitasInicio.setToolTipText("📅 Fecha de inicio (YYYY-MM-DD)");
+        txtCitasInicio.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         filterPanel.add(txtCitasInicio);
 
         JLabel lblFin = new JLabel("Hasta:");
@@ -253,49 +243,26 @@ public class PanelReportes extends JPanel {
         txtCitasFin.setBackground(new Color(50, 50, 55));
         txtCitasFin.setForeground(textLight);
         txtCitasFin.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        txtCitasFin.setToolTipText("📅 Fecha de fin (YYYY-MM-DD)");
+        txtCitasFin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         filterPanel.add(txtCitasFin);
 
-        JButton btnFiltrarCitas = createActionButton(" Filtrar Citas", accentBlue);
-        btnFiltrarCitas.setToolTipText("Filtrar citas por rango de fechas");
-        btnFiltrarCitas.addActionListener(e -> {
-            String inicio = txtCitasInicio.getText().trim();
-            String fin = txtCitasFin.getText().trim();
-            
-            if (inicio.isEmpty() || fin.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "Ambas fechas son requeridas", 
-                    "Error de Validación", 
-                    JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            String error = FechaUtil.validarRangoFechas(inicio, fin);
-            if (error != null) {
-                JOptionPane.showMessageDialog(this, error, 
-                    "Error de Validación", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            cargarReporteCitas();
-        });
+        JButton btnFiltrarCitas = createActionButton(" Filtrar", accentBlue);
+        btnFiltrarCitas.addActionListener(e -> cargarReporteCitas());
         filterPanel.add(btnFiltrarCitas);
 
         JButton btnExportarCitas = createActionButton(" Exportar", accentGreen);
-        btnExportarCitas.setToolTipText("Exportar reporte de citas a Excel, PDF o CSV");
         btnExportarCitas.addActionListener(e -> {
-            if (modelCitas.getRowCount() == 0) {
-                JOptionPane.showMessageDialog(this, 
-                    "No hay datos para exportar", 
-                    "Advertencia", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
+            if (modelCitas.getRowCount() > 0) {
+                ExportUtil.exportarConDialogo(modelCitas, "Reporte_Citas", this);
+            } else {
+                JOptionPane.showMessageDialog(this, "No hay datos para exportar", "Advertencia", JOptionPane.WARNING_MESSAGE);
             }
-            ExportUtil.exportarConDialogo(modelCitas, "Reporte_Citas", this);
         });
         filterPanel.add(btnExportarCitas);
 
         panel.add(filterPanel, BorderLayout.NORTH);
 
+        // Tabla
         String[] columnas = {"ID", "Fecha", "Hora", "Paciente", "Odontólogo", "Servicio", "Estado"};
         modelCitas = new DefaultTableModel(columnas, 0) {
             @Override
@@ -320,11 +287,11 @@ public class PanelReportes extends JPanel {
 
         panel.add(scroll, BorderLayout.CENTER);
 
+        // Footer
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         footerPanel.setBackground(darkBg);
         lblTotalCitas = new JLabel("Total: 0 citas");
         lblTotalCitas.setForeground(textGray);
-        lblTotalCitas.setToolTipText("Total de citas en el período seleccionado");
         footerPanel.add(lblTotalCitas);
         panel.add(footerPanel, BorderLayout.SOUTH);
 
@@ -337,9 +304,11 @@ public class PanelReportes extends JPanel {
         String inicio = txtCitasInicio.getText().trim();
         String fin = txtCitasFin.getText().trim();
 
-        if (inicio.isEmpty() || fin.isEmpty()) {
-            inicio = LocalDate.now().withDayOfMonth(1).toString();
-            fin = LocalDate.now().toString();
+        if (inicio.isEmpty()) {
+            inicio = FechaUtil.primerDiaDelMes();
+        }
+        if (fin.isEmpty()) {
+            fin = FechaUtil.hoy();
         }
 
         List<Cita> citas = controller.getReporteCitas(inicio, fin);
@@ -347,13 +316,13 @@ public class PanelReportes extends JPanel {
         if (citas != null) {
             for (Cita c : citas) {
                 modelCitas.addRow(new Object[]{
-                    c.getId(),
-                    c.getFecha() != null ? c.getFecha() : "",
-                    c.getHora() != null ? c.getHora() : "",
-                    c.getPacienteNombre() != null ? c.getPacienteNombre() : "N/A",
-                    c.getOdontologoNombre() != null ? c.getOdontologoNombre() : "N/A",
-                    c.getServicioNombre() != null ? c.getServicioNombre() : "N/A",
-                    c.getEstado() != null ? c.getEstado() : ""
+                        c.getId(),
+                        c.getFecha() != null ? c.getFecha() : "",
+                        c.getHora() != null ? c.getHora() : "",
+                        c.getPacienteNombre() != null ? c.getPacienteNombre() : "N/A",
+                        c.getOdontologoNombre() != null ? c.getOdontologoNombre() : "N/A",
+                        c.getServicioNombre() != null ? c.getServicioNombre() : "N/A",
+                        c.getEstado() != null ? c.getEstado() : ""
                 });
             }
         }
@@ -364,11 +333,13 @@ public class PanelReportes extends JPanel {
     // ================================================================
     // ============== PANEL DE VENTAS ==================================
     // ================================================================
+
     private JPanel createPanelVentas() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(darkBg);
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
+        // Panel de filtros
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
         filterPanel.setBackground(darkBg);
 
@@ -381,7 +352,7 @@ public class PanelReportes extends JPanel {
         txtVentasInicio.setBackground(new Color(50, 50, 55));
         txtVentasInicio.setForeground(textLight);
         txtVentasInicio.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        txtVentasInicio.setToolTipText("📅 Fecha de inicio (YYYY-MM-DD)");
+        txtVentasInicio.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         filterPanel.add(txtVentasInicio);
 
         JLabel lblFin = new JLabel("Hasta:");
@@ -393,49 +364,26 @@ public class PanelReportes extends JPanel {
         txtVentasFin.setBackground(new Color(50, 50, 55));
         txtVentasFin.setForeground(textLight);
         txtVentasFin.setBorder(BorderFactory.createLineBorder(new Color(60, 60, 65)));
-        txtVentasFin.setToolTipText("📅 Fecha de fin (YYYY-MM-DD)");
+        txtVentasFin.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         filterPanel.add(txtVentasFin);
 
-        JButton btnFiltrarVentas = createActionButton(" Filtrar Ventas", accentBlue);
-        btnFiltrarVentas.setToolTipText("🔍 Filtrar ventas por rango de fechas");
-        btnFiltrarVentas.addActionListener(e -> {
-            String inicio = txtVentasInicio.getText().trim();
-            String fin = txtVentasFin.getText().trim();
-            
-            if (inicio.isEmpty() || fin.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "Ambas fechas son requeridas", 
-                    "Error de Validación", 
-                    JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            String error = FechaUtil.validarRangoFechas(inicio, fin);
-            if (error != null) {
-                JOptionPane.showMessageDialog(this, error, 
-                    "Error de Validación", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            cargarReporteVentas();
-        });
+        JButton btnFiltrarVentas = createActionButton(" Filtrar", accentBlue);
+        btnFiltrarVentas.addActionListener(e -> cargarReporteVentas());
         filterPanel.add(btnFiltrarVentas);
 
-        JButton btnExportarVentas = createActionButton(" 📤 Exportar", accentGreen);
-        btnExportarVentas.setToolTipText("Exportar reporte de ventas a Excel, PDF o CSV");
+        JButton btnExportarVentas = createActionButton(" Exportar", accentGreen);
         btnExportarVentas.addActionListener(e -> {
-            if (modelVentas.getRowCount() == 0) {
-                JOptionPane.showMessageDialog(this, 
-                    "No hay datos para exportar", 
-                    "Advertencia", 
-                    JOptionPane.WARNING_MESSAGE);
-                return;
+            if (modelVentas.getRowCount() > 0) {
+                ExportUtil.exportarConDialogo(modelVentas, "Reporte_Ventas", this);
+            } else {
+                JOptionPane.showMessageDialog(this, "No hay datos para exportar", "Advertencia", JOptionPane.WARNING_MESSAGE);
             }
-            ExportUtil.exportarConDialogo(modelVentas, "Reporte_Ventas", this);
         });
         filterPanel.add(btnExportarVentas);
 
         panel.add(filterPanel, BorderLayout.NORTH);
 
+        // Tabla
         String[] columnas = {"ID", "Fecha", "Paciente", "Tipo", "Total", "Pago", "Estado"};
         modelVentas = new DefaultTableModel(columnas, 0) {
             @Override
@@ -460,11 +408,11 @@ public class PanelReportes extends JPanel {
 
         panel.add(scroll, BorderLayout.CENTER);
 
+        // Footer
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         footerPanel.setBackground(darkBg);
-        lblTotalVentas = new JLabel("Total : 0 ventas");
+        lblTotalVentas = new JLabel("Total: 0 ventas");
         lblTotalVentas.setForeground(textGray);
-        lblTotalVentas.setToolTipText("Total de ventas en el período seleccionado");
         footerPanel.add(lblTotalVentas);
         panel.add(footerPanel, BorderLayout.SOUTH);
 
@@ -477,9 +425,11 @@ public class PanelReportes extends JPanel {
         String inicio = txtVentasInicio.getText().trim();
         String fin = txtVentasFin.getText().trim();
 
-        if (inicio.isEmpty() || fin.isEmpty()) {
-            inicio = LocalDate.now().withDayOfMonth(1).toString();
-            fin = LocalDate.now().toString();
+        if (inicio.isEmpty()) {
+            inicio = FechaUtil.primerDiaDelMes();
+        }
+        if (fin.isEmpty()) {
+            fin = FechaUtil.hoy();
         }
 
         List<Venta> ventas = controller.getReporteVentas(inicio, fin);
@@ -487,23 +437,25 @@ public class PanelReportes extends JPanel {
         if (ventas != null) {
             for (Venta v : ventas) {
                 modelVentas.addRow(new Object[]{
-                    v.getId(),
-                    v.getFecha() != null ? v.getFecha().substring(0, 10) : "",
-                    v.getPacienteNombre() != null ? v.getPacienteNombre() : "N/A",
-                    v.getTipoComprobante() != null ? v.getTipoComprobante() : "",
-                    v.getTotalFormateado(),
-                    v.getMetodoPago() != null ? v.getMetodoPago() : "",
-                    v.getEstado() != null ? v.getEstado() : ""
+                        v.getId(),
+                        v.getFecha() != null && v.getFecha().length() >= 10 ?
+                                v.getFecha().substring(0, 10) : "",
+                        v.getPacienteNombre() != null ? v.getPacienteNombre() : "N/A",
+                        v.getTipoComprobante() != null ? v.getTipoComprobante() : "",
+                        v.getTotalFormateado() != null ? v.getTotalFormateado() : "0.00",
+                        v.getMetodoPago() != null ? v.getMetodoPago() : "",
+                        v.getEstado() != null ? v.getEstado() : ""
                 });
             }
         }
 
-        lblTotalVentas.setText("Total : " + modelVentas.getRowCount() + " ventas");
+        lblTotalVentas.setText("Total: " + modelVentas.getRowCount() + " ventas");
     }
 
     // ================================================================
     // ============== PANEL DE GRÁFICAS ================================
     // ================================================================
+
     private JPanel createPanelGraficas() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(darkBg);
@@ -518,11 +470,11 @@ public class PanelReportes extends JPanel {
         controlPanel.add(lblTitulo);
 
         String[] opcionesGraficas = {
-            "Pacientes por Mes",
-            "Citas por Odontólogo",
-            "Distribución de Pagos",
-            "Ingresos Diarios",
-            "Resumen General"
+                "Pacientes por Mes",
+                "Citas por Odontólogo",
+                "Distribución de Pagos",
+                "Ingresos Diarios",
+                "Resumen General"
         };
 
         cbGraficas = new JComboBox<>(opcionesGraficas);
@@ -530,18 +482,13 @@ public class PanelReportes extends JPanel {
         cbGraficas.setForeground(textLight);
         cbGraficas.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         cbGraficas.setPreferredSize(new Dimension(200, 30));
-        cbGraficas.setToolTipText("Seleccione el tipo de gráfica a mostrar");
         controlPanel.add(cbGraficas);
 
         JButton btnGenerar = createActionButton("Generar Gráfica", accentBlue);
-        btnGenerar.setToolTipText("Generar la gráfica seleccionada con los datos actuales");
-        btnGenerar.addActionListener(e -> {
-            generarGrafica(cbGraficas.getSelectedIndex());
-        });
+        btnGenerar.addActionListener(e -> generarGrafica(cbGraficas.getSelectedIndex()));
         controlPanel.add(btnGenerar);
 
         JButton btnLimpiar = createActionButton("Limpiar", accentOrange);
-        btnLimpiar.setToolTipText("Limpiar la gráfica actual");
         btnLimpiar.addActionListener(e -> {
             if (chartPanel != null) {
                 chartPanel.clear();
@@ -562,18 +509,12 @@ public class PanelReportes extends JPanel {
         return panel;
     }
 
-    /**
-     * Genera la gráfica seleccionada - CORREGIDO
-     */
     private void generarGrafica(int tipo) {
         if (chartPanel == null) return;
 
         String[] resumen = controller.getResumenGeneral();
         if (resumen == null || resumen.length < 6) {
-            JOptionPane.showMessageDialog(this, 
-                "No hay datos para generar la gráfica", 
-                "Sin Datos", 
-                JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No hay datos para generar la gráfica", "Sin Datos", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -585,7 +526,7 @@ public class PanelReportes extends JPanel {
                         chartPanel.createPacientesChart(pacientesPorMes);
                     }
                     break;
-                    
+
                 case 1: // Citas por Odontólogo
                     String inicio = FechaUtil.primerDiaDelMes();
                     String fin = FechaUtil.hoy();
@@ -600,17 +541,14 @@ public class PanelReportes extends JPanel {
                         }
                         chartPanel.createCitasPorOdontologoChart(odontologos, cantidades);
                     } else {
-                        JOptionPane.showMessageDialog(this, 
-                            "No hay datos de citas por odontólogo", 
-                            "Sin Datos", 
-                            JOptionPane.WARNING_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "No hay datos de citas por odontólogo", "Sin Datos", JOptionPane.WARNING_MESSAGE);
                     }
                     break;
-                    
+
                 case 2: // Distribución de Pagos
                     List<Object[]> pagos = controller.getIngresosPorMetodoPago(
-                        FechaUtil.primerDiaDelMes(), 
-                        FechaUtil.hoy()
+                            FechaUtil.primerDiaDelMes(),
+                            FechaUtil.hoy()
                     );
                     if (pagos != null && !pagos.isEmpty()) {
                         String[] metodos = new String[pagos.size()];
@@ -622,17 +560,14 @@ public class PanelReportes extends JPanel {
                         }
                         chartPanel.createPagosChart(metodos, montos);
                     } else {
-                        JOptionPane.showMessageDialog(this, 
-                            "No hay datos de pagos", 
-                            "Sin Datos", 
-                            JOptionPane.WARNING_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "No hay datos de pagos", "Sin Datos", JOptionPane.WARNING_MESSAGE);
                     }
                     break;
-                    
+
                 case 3: // Ingresos Diarios
                     List<Object[]> ingresos = controller.getIngresosPorDia(
-                        FechaUtil.primerDiaDelMes(), 
-                        FechaUtil.hoy()
+                            FechaUtil.primerDiaDelMes(),
+                            FechaUtil.hoy()
                     );
                     if (ingresos != null && !ingresos.isEmpty()) {
                         String[] fechas = new String[ingresos.size()];
@@ -640,52 +575,38 @@ public class PanelReportes extends JPanel {
                         for (int i = 0; i < ingresos.size(); i++) {
                             Object[] row = ingresos.get(i);
                             fechas[i] = row[0].toString();
-                            // CORREGIDO: Usar FechaUtil.parseMoneda
-                            String montoStr = row[1].toString();
-                            montos[i] = FechaUtil.parseMoneda(montoStr);
+                            montos[i] = Double.parseDouble(row[1].toString());
                         }
                         chartPanel.createIngresosChart(fechas, montos);
                     } else {
-                        JOptionPane.showMessageDialog(this, 
-                            "No hay datos de ingresos", 
-                            "Sin Datos", 
-                            JOptionPane.WARNING_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "No hay datos de ingresos", "Sin Datos", JOptionPane.WARNING_MESSAGE);
                     }
                     break;
-                    
+
                 case 4: // Resumen General
-                    // CORREGIDO: Usar FechaUtil.parseMoneda para el resumen de ingresos
                     double ingresosDouble = FechaUtil.parseMoneda(resumen[2]);
-                    
                     chartPanel.createResumenChart(
-                        Integer.parseInt(resumen[0]),
-                        Integer.parseInt(resumen[1]),
-                        ingresosDouble,
-                        Integer.parseInt(resumen[3]),
-                        Integer.parseInt(resumen[4]),
-                        Integer.parseInt(resumen[5])
+                            Integer.parseInt(resumen[0]),
+                            Integer.parseInt(resumen[1]),
+                            ingresosDouble,
+                            Integer.parseInt(resumen[3]),
+                            Integer.parseInt(resumen[4]),
+                            Integer.parseInt(resumen[5])
                     );
                     break;
             }
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, 
-                "Error al convertir datos numéricos: " + e.getMessage() + 
-                "\nVerifique que los datos sean números válidos", 
-                "Error de Datos", 
-                JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al convertir datos numéricos: " + e.getMessage(), "Error de Datos", JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, 
-                "Error al generar gráfica: " + e.getMessage(), 
-                "Error", 
-                JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Error al generar gráfica: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
         }
     }
 
     // ================================================================
-    // ============== RESTO DEL CÓDIGO ORIGINAL =======================
+    // ============== PANEL DE RESUMEN =================================
     // ================================================================
-    
+
     private JPanel createResumenPanel() {
         JPanel panel = new JPanel(new GridLayout(2, 3, 15, 8));
         panel.setBackground(darkBg);
@@ -693,22 +614,11 @@ public class PanelReportes extends JPanel {
         panel.setPreferredSize(new Dimension(0, 80));
 
         lblResumenPacientes = createResumenCard(" Pacientes ", "0", hoverPacientes);
-        lblResumenPacientes.setToolTipText("Total de pacientes registrados en el sistema");
-        
         lblResumenCitas = createResumenCard(" Citas Hoy ", "0", hoverCitas);
-        lblResumenCitas.setToolTipText("Citas programadas para hoy");
-        
         lblResumenVentas = createResumenCard(" Ingresos Hoy ", "$0.00", hoverVentas);
-        lblResumenVentas.setToolTipText("Ingresos generados hoy");
-        
-        lblResumenServicios = createResumenCard(" Servicios", "0", hoverServicios);
-        lblResumenServicios.setToolTipText("Total de servicios disponibles");
-        
-        lblResumenInsumos = createResumenCard(" Insumos", "0", hoverInsumos);
-        lblResumenInsumos.setToolTipText("Total de insumos en inventario");
-        
-        lblResumenStockBajo = createResumenCard("️ Stock Bajo", "0", hoverStockBajo);
-        lblResumenStockBajo.setToolTipText("Insumos con stock por debajo del mínimo");
+        lblResumenServicios = createResumenCard(" Servicios ", "0", hoverServicios);
+        lblResumenInsumos = createResumenCard(" Insumos ", "0", hoverInsumos);
+        lblResumenStockBajo = createResumenCard(" Stock Bajo ", "0", hoverStockBajo);
 
         panel.add(lblResumenPacientes);
         panel.add(lblResumenCitas);
@@ -746,6 +656,7 @@ public class PanelReportes extends JPanel {
                 ));
                 label.repaint();
             }
+
             @Override
             public void mouseExited(MouseEvent e) {
                 label.setBackground(colorOriginal);
@@ -765,13 +676,8 @@ public class PanelReportes extends JPanel {
         panel.setBackground(darkBg);
         panel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        String[] titulos = {" Pacientes", " Citas", " Ingresos",
-            " Servicios", " Insumos", "️ Stock Bajo"};
-
-        Color[] coloresHover = {
-            hoverPacientes, hoverCitas, hoverVentas,
-            hoverServicios, hoverInsumos, hoverStockBajo
-        };
+        String[] titulos = {" Pacientes", " Citas", " Ingresos", " Servicios", " Insumos", " Stock Bajo"};
+        Color[] coloresHover = {hoverPacientes, hoverCitas, hoverVentas, hoverServicios, hoverInsumos, hoverStockBajo};
 
         for (int i = 0; i < titulos.length; i++) {
             JPanel card = createCardConHover(titulos[i], "0", coloresHover[i]);
@@ -816,6 +722,7 @@ public class PanelReportes extends JPanel {
                 ));
                 card.repaint();
             }
+
             @Override
             public void mouseExited(MouseEvent e) {
                 card.setBackground(colorOriginal);
@@ -853,6 +760,10 @@ public class PanelReportes extends JPanel {
         }
     }
 
+    // ================================================================
+    // ============== UTILIDADES =======================================
+    // ================================================================
+
     private JButton createActionButton(String text, Color color) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -867,6 +778,7 @@ public class PanelReportes extends JPanel {
             public void mouseEntered(MouseEvent e) {
                 btn.setBackground(color.brighter());
             }
+
             public void mouseExited(MouseEvent e) {
                 btn.setBackground(color);
             }
@@ -882,7 +794,7 @@ public class PanelReportes extends JPanel {
             lblResumenVentas.setText(" Ingresos Hoy :  $" + resumen[2]);
             lblResumenServicios.setText(" Servicios :  " + resumen[3]);
             lblResumenInsumos.setText(" Insumos :  " + resumen[4]);
-            lblResumenStockBajo.setText("️ Stock Bajo :  " + resumen[5]);
+            lblResumenStockBajo.setText(" Stock Bajo :  " + resumen[5]);
         }
     }
 }

@@ -11,8 +11,6 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.File;
-import java.io.IOException;
 
 public class PanelConfiguracion extends JPanel {
     
@@ -47,6 +45,7 @@ public class PanelConfiguracion extends JPanel {
     private Color textGray = new Color(150, 150, 165);
     private Color accentBlue = new Color(70, 130, 200);
     private Color accentGreen = new Color(60, 180, 110);
+    private Color accentYellow = new Color(255, 193, 7);
     
     public PanelConfiguracion(JFrame parent) {
         this.parentFrame = parent;
@@ -131,26 +130,22 @@ public class PanelConfiguracion extends JPanel {
     // ========== BOTÓN DE AYUDA ===================================
     // ============================================================
     
-    /**
-     * Crea el botón de ayuda con el ícono de pregunta
-     */
     private JButton crearBotonAyuda() {
         JButton btnAyuda = new JButton("Guía Rápida");
         btnAyuda.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        btnAyuda.setBackground(new Color(255, 193, 7));  // Amarillo
+        btnAyuda.setBackground(accentYellow);
         btnAyuda.setForeground(Color.BLACK);
         btnAyuda.setFocusPainted(false);
         btnAyuda.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnAyuda.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
         btnAyuda.setToolTipText("Ver guía de configuración paso a paso");
         
-        // Efecto hover
         btnAyuda.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 btnAyuda.setBackground(new Color(255, 200, 50));
             }
             public void mouseExited(MouseEvent e) {
-                btnAyuda.setBackground(new Color(255, 193, 7));
+                btnAyuda.setBackground(accentYellow);
             }
         });
         
@@ -158,42 +153,24 @@ public class PanelConfiguracion extends JPanel {
         return btnAyuda;
     }
     
-    /**
-     * Muestra la guía de ayuda con instrucciones detalladas
-     * Versión corregida con tamaño fijo y colores visibles
-     */
     private void mostrarGuiaAyuda() {
-        // ==========================================
-        // CONFIGURACIÓN DE COLORES
-        // ==========================================
-        Color fondoVentana = new Color(30, 30, 35);      // Fondo oscuro
-        Color fondoPanel = new Color(40, 40, 45);        // Fondo de tarjeta
-        Color textoClaro = new Color(220, 220, 230);     // Texto blanco/gris claro
+        Color fondoVentana = new Color(30, 30, 35);
+        Color fondoPanel = new Color(40, 40, 45);
+        Color textoClaro = new Color(220, 220, 230);
         
-        // ==========================================
-        // CREAR EL PANEL PRINCIPAL
-        // ==========================================
         JPanel panelContenido = new JPanel(new BorderLayout());
         panelContenido.setBackground(fondoVentana);
         panelContenido.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        // ==========================================
-        // ÁREA DE TEXTO CON HTML (CORREGIDO)
-        // ==========================================
         JEditorPane editorPane = new JEditorPane();
         editorPane.setContentType("text/html");
         editorPane.setEditable(false);
         editorPane.setBackground(fondoPanel);
         editorPane.setForeground(textoClaro);
         editorPane.setText(obtenerGuiaHTML());
-        
-        // Configurar tamaño fijo
         editorPane.setPreferredSize(new Dimension(700, 450));
         editorPane.setMinimumSize(new Dimension(650, 400));
         
-        // ==========================================
-        // SCROLL PANEL
-        // ==========================================
         JScrollPane scrollPane = new JScrollPane(editorPane);
         scrollPane.setPreferredSize(new Dimension(700, 450));
         scrollPane.setMinimumSize(new Dimension(650, 400));
@@ -204,22 +181,18 @@ public class PanelConfiguracion extends JPanel {
         
         panelContenido.add(scrollPane, BorderLayout.CENTER);
         
-        // ==========================================
-        // PANEL DE BOTÓN INFERIOR
-        // ==========================================
         JPanel panelBoton = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         panelBoton.setBackground(fondoVentana);
         panelBoton.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         
         JButton btnCerrar = new JButton("Entendido, ¡a configurar!");
         btnCerrar.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnCerrar.setBackground(new Color(60, 180, 110));
+        btnCerrar.setBackground(accentGreen);
         btnCerrar.setForeground(Color.WHITE);
         btnCerrar.setFocusPainted(false);
         btnCerrar.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCerrar.setPreferredSize(new Dimension(250, 45));
         btnCerrar.addActionListener(e -> {
-            // Cerrar el diálogo
             Window window = SwingUtilities.getWindowAncestor(btnCerrar);
             if (window != null) {
                 window.dispose();
@@ -228,41 +201,20 @@ public class PanelConfiguracion extends JPanel {
         
         panelBoton.add(btnCerrar);
         
-        // ==========================================
-        // CREAR DIÁLOGO CON TAMAÑO FIJO
-        // ==========================================
         JDialog dialog = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), 
                                      "Guía de Configuración de Correo", true);
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         dialog.setLayout(new BorderLayout(5, 5));
         dialog.setBackground(fondoVentana);
-        
-        // ==========================================
-        // AGREGAR COMPONENTES AL DIÁLOGO
-        // ==========================================
         dialog.add(panelContenido, BorderLayout.CENTER);
         dialog.add(panelBoton, BorderLayout.SOUTH);
-        
-        // ==========================================
-        // CONFIGURAR TAMAÑO Y POSICIÓN
-        // ==========================================
-        dialog.setSize(750, 550);                    // Tamaño fijo
-        dialog.setMinimumSize(new Dimension(700, 500));  // Tamaño mínimo
-        dialog.setPreferredSize(new Dimension(750, 550)); // Tamaño preferido
-        
-        // Centrar en la pantalla
-        dialog.setLocationRelativeTo(null);          // Centrado absoluto
-        
-        // ==========================================
-        // MOSTRAR DIÁLOGO
-        // ==========================================
+        dialog.setSize(750, 550);
+        dialog.setMinimumSize(new Dimension(700, 500));
+        dialog.setPreferredSize(new Dimension(750, 550));
+        dialog.setLocationRelativeTo(null);
         dialog.setVisible(true);
     }
     
-    /**
-     * Genera el contenido HTML de la guía de ayuda
-     * Versión con colores corregidos para fondo oscuro
-     */
     private String obtenerGuiaHTML() {
         return """
         <html>
@@ -292,7 +244,7 @@ public class PanelConfiguracion extends JPanel {
                 border-radius: 4px;
             '>
                 <p style='margin: 0; color: #DCDCE6;'>
-                    <strong>️ Tiempo estimado:</strong> 3 minutos
+                    <strong>⏱️ Tiempo estimado:</strong> 3 minutos
                 </p>
                 <p style='margin: 0; font-size: 13px; color: #9696A5;'>
                     Sigue estos pasos y tendrás tu correo configurado en minutos
@@ -358,9 +310,6 @@ public class PanelConfiguracion extends JPanel {
                         border-radius: 3px; 
                         color: #6BA3D9;
                     '>smtp.gmail.com</code> (por defecto)
-                    <br><span style='color: #9696A5; font-size: 13px;'>
-                        Para otros: smtp.outlook.com, smtp.office365.com
-                    </span>
                 </li>
                 <li><strong>🔢 Puerto:</strong> Deja 
                     <code style='
@@ -400,10 +349,9 @@ public class PanelConfiguracion extends JPanel {
                     ⚠️ Solución de problemas comunes
                 </h4>
                 <ul style='font-size: 13px; line-height: 2; margin-bottom: 0; color: #DCDCE6;'>
-                    <li><strong>"Authentication failed"</strong> → Genera una NUEVA contraseña de aplicación en Gmail</li>
-                    <li><strong>No llega el correo</strong> → Revisa la carpeta SPAM o correo no deseado</li>
+                    <li><strong>"Authentication failed"</strong> → Genera una NUEVA contraseña de aplicación</li>
+                    <li><strong>No llega el correo</strong> → Revisa la carpeta SPAM</li>
                     <li><strong>Error de conexión</strong> → Verifica tu conexión a internet</li>
-                    <li><strong>Puerto bloqueado</strong> → Prueba con puerto 465 (SSL) y desactiva TLS</li>
                 </ul>
             </div>
             
@@ -422,10 +370,6 @@ public class PanelConfiguracion extends JPanel {
     // ========== PANEL DE CORREO ==================================
     // ============================================================
     
-    /**
-     * Crea el panel de configuración de correo con todos los campos
-     * y botones necesarios para que el cliente configure su cuenta
-     */
     private JPanel crearPanelCorreo() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(darkCard);
@@ -434,7 +378,7 @@ public class PanelConfiguracion extends JPanel {
             new TitledBorder(new EmptyBorder(15, 15, 15, 15), "Configuración de Correo",
                 TitledBorder.LEFT, TitledBorder.TOP, new Font("Segoe UI", Font.BOLD, 14), textLight)
         ));
-        panel.setPreferredSize(new Dimension(500, 380));
+        panel.setPreferredSize(new Dimension(500, 400));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 10, 5, 10);
@@ -443,10 +387,10 @@ public class PanelConfiguracion extends JPanel {
 
         int row = 0;
 
-        // ---------- Campo: Correo electrónico ----------
+        // ---------- Campo: Correo electrónico (Remitente) ----------
         gbc.gridx = 0; gbc.gridy = row;
         gbc.gridwidth = 1;
-        JLabel lblCorreo = new JLabel("Correo:");
+        JLabel lblCorreo = new JLabel("Correo (Remitente):");
         lblCorreo.setForeground(textLight);
         lblCorreo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         panel.add(lblCorreo, gbc);
@@ -533,7 +477,7 @@ public class PanelConfiguracion extends JPanel {
         botonPanel.setBackground(darkCard);
 
         btnGuardarCorreo = new JButton("Guardar Configuración");
-        btnGuardarCorreo.setBackground(new Color(60, 180, 110));
+        btnGuardarCorreo.setBackground(accentGreen);
         btnGuardarCorreo.setForeground(Color.WHITE);
         btnGuardarCorreo.setFocusPainted(false);
         btnGuardarCorreo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -541,7 +485,7 @@ public class PanelConfiguracion extends JPanel {
         btnGuardarCorreo.addActionListener(e -> guardarConfiguracionCorreo());
 
         btnProbarCorreo = new JButton("Probar Envío");
-        btnProbarCorreo.setBackground(new Color(70, 130, 200));
+        btnProbarCorreo.setBackground(accentBlue);
         btnProbarCorreo.setForeground(Color.WHITE);
         btnProbarCorreo.setFocusPainted(false);
         btnProbarCorreo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -603,7 +547,7 @@ public class PanelConfiguracion extends JPanel {
         
         lblEstado = new JLabel("Estado: Activo");
         lblEstado.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        lblEstado.setForeground(new Color(60, 180, 110));
+        lblEstado.setForeground(accentGreen);
         
         gbc.gridx = 0; gbc.gridy = 0;
         panel.add(lblVersion, gbc);
@@ -663,21 +607,14 @@ public class PanelConfiguracion extends JPanel {
     // ========== MÉTODOS DE CARGA =================================
     // ============================================================
     
-    /**
-     * Carga la configuración de correo desde ConfiguracionService
-     */
     private void cargarConfiguracionCorreo() {
         try {
-            // Verificar si hay credenciales configuradas
             if (configService.credencialesConfiguradas()) {
-                // Cargar datos en los campos (la contraseña no se muestra)
                 txtCorreo.setText(configService.getEmailUser());
                 txtSmtpHost.setText(configService.getSmtpHost());
                 txtSmtpPort.setText(configService.getSmtpPort());
-                
-                // Si hay configuración, actualizar estado
                 lblEstadoCorreo.setText("Configurado");
-                lblEstadoCorreo.setForeground(new Color(60, 180, 110));
+                lblEstadoCorreo.setForeground(accentGreen);
             } else {
                 lblEstadoCorreo.setText("Sin configurar");
                 lblEstadoCorreo.setForeground(textGray);
@@ -705,16 +642,10 @@ public class PanelConfiguracion extends JPanel {
     
     private void aplicarConfiguracion() {
         try {
-            if (parentFrame != null) {
-                // Aquí puedes aplicar configuraciones adicionales si las hay
-                // Por ahora solo notificamos
-                
-                JOptionPane.showMessageDialog(this,
-                    "Configuración aplicada correctamente.\n" +
-                    "Los cambios se han guardado en config.properties.",
-                    "Éxito", JOptionPane.INFORMATION_MESSAGE);
-            }
-            
+            JOptionPane.showMessageDialog(this,
+                "Configuración aplicada correctamente.\n" +
+                "Los cambios se han guardado en config.properties.",
+                "Éxito", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this,
                 "Error al aplicar configuración: " + e.getMessage(),
@@ -734,7 +665,6 @@ public class PanelConfiguracion extends JPanel {
         
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                // Restaurar configuración de correo a valores por defecto
                 txtCorreo.setText("");
                 txtPasswordApp.setText("");
                 txtSmtpHost.setText("smtp.gmail.com");
@@ -760,17 +690,11 @@ public class PanelConfiguracion extends JPanel {
     // ========== MÉTODOS DE CONFIGURACIÓN DE CORREO ==============
     // ============================================================
     
-    /**
-     * Guarda la configuración de correo usando ConfiguracionService
-     * Este método se ejecuta cuando el usuario hace clic en "Guardar Configuración"
-     */
     private void guardarConfiguracionCorreo() {
         try {
-            // Obtener valores de los campos
             String email = txtCorreo.getText().trim();
             String pass = new String(txtPasswordApp.getPassword()).trim();
 
-            // Validar campos obligatorios
             if (email.isEmpty() || pass.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
                     "Correo y contraseña son obligatorios",
@@ -778,7 +702,6 @@ public class PanelConfiguracion extends JPanel {
                 return;
             }
 
-            // Validar formato de email básico
             if (!email.contains("@") || !email.contains(".")) {
                 JOptionPane.showMessageDialog(this,
                     "El correo electrónico no tiene un formato válido",
@@ -786,7 +709,6 @@ public class PanelConfiguracion extends JPanel {
                 return;
             }
 
-            // Guardar usando ConfiguracionService
             configService.guardarConfiguracionCorreo(
                 email,
                 pass,
@@ -795,16 +717,13 @@ public class PanelConfiguracion extends JPanel {
                 chkTLS.isSelected()
             );
 
-            // Actualizar estado visual
             lblEstadoCorreo.setText("Configuración guardada");
-            lblEstadoCorreo.setForeground(new Color(60, 180, 110));
-
-            // Limpiar campo de contraseña por seguridad
+            lblEstadoCorreo.setForeground(accentGreen);
             txtPasswordApp.setText("");
 
             JOptionPane.showMessageDialog(this,
-                "Configuración de correo guardada correctamente\n" +
-                "El archivo config.properties ha sido actualizado.\n\n" +
+                "✅ Configuración de correo guardada correctamente\n" +
+                "📧 Remitente: " + email + "\n\n" +
                 "Puedes usar el botón 'Probar Envío' para verificar.",
                 "Éxito", JOptionPane.INFORMATION_MESSAGE);
 
@@ -816,13 +735,8 @@ public class PanelConfiguracion extends JPanel {
         }
     }
     
-    /**
-     * Prueba el envío de correo usando EmailService
-     * Este método se ejecuta cuando el usuario hace clic en "Probar Envío"
-     */
     private void probarEnvioCorreo() {
         try {
-            // Verificar si hay configuración guardada
             if (!configService.credencialesConfiguradas()) {
                 JOptionPane.showMessageDialog(this,
                     "Primero guarda la configuración de correo\n" +
@@ -831,17 +745,15 @@ public class PanelConfiguracion extends JPanel {
                 return;
             }
 
-            // Pedir correo de destino
             String destino = JOptionPane.showInputDialog(this,
                 "Ingresa un correo de prueba (destinatario):\n" +
                 "Ejemplo: cliente@ejemplo.com",
                 "Probar envío", JOptionPane.QUESTION_MESSAGE);
 
             if (destino == null || destino.trim().isEmpty()) {
-                return; // Usuario canceló
+                return;
             }
 
-            // Validar formato del correo de destino
             if (!destino.trim().contains("@") || !destino.trim().contains(".")) {
                 JOptionPane.showMessageDialog(this,
                     "El correo de destino no tiene un formato válido",
@@ -849,16 +761,14 @@ public class PanelConfiguracion extends JPanel {
                 return;
             }
 
-            // Crear mensaje de prueba con HTML
             String asunto = "Prueba de configuración - Dental Clinic System";
             String mensaje = generarMensajePrueba();
 
-            // Enviar usando el EmailService existente
             boolean enviado = emailService.enviarEmail(destino.trim(), asunto, mensaje);
 
             if (enviado) {
                 JOptionPane.showMessageDialog(this,
-                    "Correo de prueba enviado exitosamente a:\n" +
+                    "✅ Correo de prueba enviado exitosamente a:\n" +
                     destino.trim() + "\n\n" +
                     "Si no lo recibes, verifica:\n" +
                     "• Que el correo existe\n" +
@@ -884,10 +794,6 @@ public class PanelConfiguracion extends JPanel {
         }
     }
     
-    /**
-     * Genera el mensaje HTML para el correo de prueba
-     * @return String con el HTML del mensaje
-     */
     private String generarMensajePrueba() {
         String empresa = configService.getEmpresaNombre();
         String fecha = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
@@ -902,10 +808,10 @@ public class PanelConfiguracion extends JPanel {
                "<p style='font-size: 16px;'>Estimado/a usuario,</p>" +
                "<p>Este es un correo de prueba enviado desde el <strong>" + empresa + "</strong>.</p>" +
                "<div style='background: #eaf2f8; padding: 15px; border-radius: 5px; margin: 15px 0;'>" +
-               "<p><strong> Fecha:</strong> " + fecha + "</p>" +
-               "<p><strong> Versión:</strong> 2.0.0</p>" +
-               "<p><strong> Estado:</strong> <span style='color: #27ae60;'>Configuración correcta</span></p>" +
-               "<p><strong> Remitente:</strong> " + configService.getEmailUser() + "</p>" +
+               "<p><strong>📅 Fecha:</strong> " + fecha + "</p>" +
+               "<p><strong>📌 Versión:</strong> 2.0.0</p>" +
+               "<p><strong>✅ Estado:</strong> <span style='color: #27ae60;'>Configuración correcta</span></p>" +
+               "<p><strong>📧 Remitente:</strong> " + configService.getEmailUser() + "</p>" +
                "</div>" +
                "<p style='color: #7f8c8d;'>Si recibes este mensaje, la configuración de correo está funcionando correctamente.</p>" +
                "<p style='color: #7f8c8d;'>El sistema ahora puede enviar recordatorios y facturas automáticamente.</p>" +
@@ -917,4 +823,4 @@ public class PanelConfiguracion extends JPanel {
                "</body>" +
                "</html>";
     }
-}
+}   

@@ -1,0 +1,447 @@
+package com.dentalclinicsystem.dao;
+
+import com.dentalclinicsystem.config.ConexionSQLite;
+import com.dentalclinicsystem.model.Cita;
+import com.dentalclinicsystem.model.Paciente;
+import com.dentalclinicsystem.model.Venta;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * DAO - SOLO se encarga de consultar la base de datos
+ * NADA de lógica de negocio aquí
+ */
+public class ReporteDAO {
+
+    // ================================================================
+    // ============== PACIENTES ========================================
+    // ================================================================
+    
+    public List<Paciente> getPacientes() {
+        List<Paciente> pacientes = new ArrayList<>();
+        String sql = "SELECT * FROM pacientes WHERE estado = 1 ORDER BY apellido, nombre";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                pacientes.add(mapearPaciente(rs));
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getPacientes: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return pacientes;
+    }
+    
+    public List<Paciente> getPacientesPorFechas(String fechaInicio, String fechaFin) {
+        List<Paciente> pacientes = new ArrayList<>();
+        String sql = "SELECT * FROM pacientes WHERE estado = 1 AND fecha_registro BETWEEN ? AND ? ORDER BY apellido, nombre";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin + " 23:59:59");
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                pacientes.add(mapearPaciente(rs));
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getPacientesPorFechas: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return pacientes;
+    }
+    
+    public int[] getEstadisticasPacientes() {
+        int[] stats = new int[2];
+        String sql = "SELECT genero, COUNT(*) as total FROM pacientes WHERE estado = 1 GROUP BY genero";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                String genero = rs.getString("genero");
+                int total = rs.getInt("total");
+                if ("M".equals(genero)) {
+                    stats[0] = total;
+                } else if ("F".equals(genero)) {
+                    stats[1] = total;
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getEstadisticasPacientes: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return stats;
+    }
+    
+    public int[] getPacientesPorMes() {
+        int[] meses = new int[12];
+        String sql = "SELECT strftime('%m', fecha_registro) as mes, COUNT(*) as total FROM pacientes " +
+                     "WHERE estado = 1 AND strftime('%Y', fecha_registro) = strftime('%Y', 'now') " +
+                     "GROUP BY mes ORDER BY mes";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                int mes = Integer.parseInt(rs.getString("mes")) - 1;
+                meses[mes] = rs.getInt("total");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getPacientesPorMes: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return meses;
+    }
+
+    // ================================================================
+    // ============== CITAS ===========================================
+    // ================================================================
+    
+    public List<Cita> getCitas(String fechaInicio, String fechaFin) {
+        List<Cita> citas = new ArrayList<>();
+        String sql = "SELECT c.*, p.nombre || ' ' || p.apellido as paciente_nombre, " +
+                     "u.nombre as odontologo_nombre, s.nombre as servicio_nombre " +
+                     "FROM citas c " +
+                     "LEFT JOIN pacientes p ON c.paciente_id = p.id " +
+                     "LEFT JOIN usuarios u ON c.odontologo_id = u.id " +
+                     "LEFT JOIN servicios s ON c.servicio_id = s.id " +
+                     "WHERE c.fecha BETWEEN ? AND ? ORDER BY c.fecha, c.hora";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                citas.add(mapearCita(rs));
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getCitas: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return citas;
+    }
+    
+    public int[] getEstadisticasCitas() {
+        int[] stats = new int[6];
+        String sql = "SELECT estado, COUNT(*) as total FROM citas GROUP BY estado";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                String estado = rs.getString("estado");
+                int total = rs.getInt("total");
+                switch (estado) {
+                    case "PROGRAMADA": stats[0] = total; break;
+                    case "CONFIRMADA": stats[1] = total; break;
+                    case "EN_PROCESO": stats[2] = total; break;
+                    case "COMPLETADA": stats[3] = total; break;
+                    case "CANCELADA": stats[4] = total; break;
+                    case "NO_ASISTIO": stats[5] = total; break;
+                }
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getEstadisticasCitas: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return stats;
+    }
+    
+    public List<Object[]> getCitasPorOdontologo(String fechaInicio, String fechaFin) {
+        List<Object[]> resultados = new ArrayList<>();
+        String sql = "SELECT u.nombre as odontologo, COUNT(*) as total " +
+                     "FROM citas c " +
+                     "JOIN usuarios u ON c.odontologo_id = u.id " +
+                     "WHERE c.fecha BETWEEN ? AND ? " +
+                     "GROUP BY u.nombre " +
+                     "ORDER BY total DESC";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin + " 23:59:59");
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                resultados.add(new Object[]{
+                    rs.getString("odontologo"),
+                    rs.getInt("total")
+                });
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getCitasPorOdontologo: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return resultados;
+    }
+
+    // ================================================================
+    // ============== VENTAS ===========================================
+    // ================================================================
+    
+    public List<Venta> getVentas(String fechaInicio, String fechaFin) {
+        List<Venta> ventas = new ArrayList<>();
+        String sql = "SELECT v.*, p.nombre || ' ' || p.apellido as paciente_nombre " +
+                     "FROM ventas v " +
+                     "LEFT JOIN pacientes p ON v.paciente_id = p.id " +
+                     "WHERE v.fecha BETWEEN ? AND ? ORDER BY v.fecha DESC";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin + " 23:59:59");
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                ventas.add(mapearVenta(rs));
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getVentas: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return ventas;
+    }
+    
+    public List<Object[]> getIngresosPorDia(String fechaInicio, String fechaFin) {
+        List<Object[]> resultados = new ArrayList<>();
+        String sql = "SELECT fecha, SUM(total) as total FROM ventas " +
+                     "WHERE fecha BETWEEN ? AND ? AND estado IN ('PAGADA', 'ACTIVA') " +
+                     "GROUP BY fecha ORDER BY fecha";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin + " 23:59:59");
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                String fecha = rs.getString("fecha");
+                if (fecha != null && fecha.length() > 10) {
+                    fecha = fecha.substring(0, 10);
+                }
+                resultados.add(new Object[]{fecha, rs.getDouble("total")});
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getIngresosPorDia: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return resultados;
+    }
+    
+    public List<Object[]> getIngresosPorMetodoPago(String fechaInicio, String fechaFin) {
+        List<Object[]> resultados = new ArrayList<>();
+        String sql = "SELECT metodo_pago, SUM(total) as total FROM ventas " +
+                     "WHERE fecha BETWEEN ? AND ? AND estado IN ('PAGADA', 'ACTIVA') " +
+                     "GROUP BY metodo_pago ORDER BY total DESC";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin + " 23:59:59");
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                resultados.add(new Object[]{
+                    rs.getString("metodo_pago"),
+                    rs.getDouble("total")
+                });
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getIngresosPorMetodoPago: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return resultados;
+    }
+
+    // ================================================================
+    // ============== SERVICIOS ========================================
+    // ================================================================
+    
+    public List<Object[]> getServiciosMasSolicitados(String fechaInicio, String fechaFin) {
+        List<Object[]> resultados = new ArrayList<>();
+        String sql = "SELECT s.nombre, COUNT(*) as total FROM citas c " +
+                     "JOIN servicios s ON c.servicio_id = s.id " +
+                     "WHERE c.fecha BETWEEN ? AND ? " +
+                     "GROUP BY s.nombre ORDER BY total DESC LIMIT 10";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, fechaInicio);
+            pstmt.setString(2, fechaFin);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                resultados.add(new Object[]{
+                    rs.getString("nombre"),
+                    rs.getInt("total")
+                });
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getServiciosMasSolicitados: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return resultados;
+    }
+
+    // ================================================================
+    // ============== INVENTARIO =======================================
+    // ================================================================
+    
+    public List<Object[]> getInsumosStockBajo() {
+        List<Object[]> resultados = new ArrayList<>();
+        String sql = "SELECT nombre, codigo, stock, stock_minimo FROM insumos " +
+                     "WHERE stock <= stock_minimo AND estado = 1 ORDER BY stock";
+        
+        try (Connection conn = ConexionSQLite.conectar();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                resultados.add(new Object[]{
+                    rs.getString("nombre"),
+                    rs.getString("codigo"),
+                    rs.getInt("stock"),
+                    rs.getInt("stock_minimo")
+                });
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getInsumosStockBajo: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return resultados;
+    }
+
+    // ================================================================
+    // ============== RESÚMEN GENERAL =================================
+    // ================================================================
+    
+    public String[] getResumenGeneral() {
+        String[] resumen = new String[6];
+        
+        try (Connection conn = ConexionSQLite.conectar()) {
+            // Total pacientes
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM pacientes WHERE estado = 1")) {
+                resumen[0] = rs.next() ? String.valueOf(rs.getInt(1)) : "0";
+            }
+            
+            // Total citas hoy
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM citas WHERE fecha = date('now')")) {
+                resumen[1] = rs.next() ? String.valueOf(rs.getInt(1)) : "0";
+            }
+            
+            // Total ventas hoy
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COALESCE(SUM(total), 0) FROM ventas WHERE fecha = date('now')")) {
+                resumen[2] = rs.next() ? String.format("%.2f", rs.getDouble(1)) : "0.00";
+            }
+            
+            // Total servicios
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM servicios WHERE estado = 1")) {
+                resumen[3] = rs.next() ? String.valueOf(rs.getInt(1)) : "0";
+            }
+            
+            // Total insumos
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM insumos WHERE estado = 1")) {
+                resumen[4] = rs.next() ? String.valueOf(rs.getInt(1)) : "0";
+            }
+            
+            // Insumos con stock bajo
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM insumos WHERE stock <= stock_minimo AND estado = 1")) {
+                resumen[5] = rs.next() ? String.valueOf(rs.getInt(1)) : "0";
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error DAO - getResumenGeneral: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return resumen;
+    }
+
+    // ================================================================
+    // ============== MAPPERS PRIVADOS ================================
+    // ================================================================
+    
+    private Paciente mapearPaciente(ResultSet rs) throws SQLException {
+        Paciente p = new Paciente();
+        p.setId(rs.getInt("id"));
+        p.setNombre(rs.getString("nombre"));
+        p.setApellido(rs.getString("apellido"));
+        p.setNumeroDocumento(rs.getString("numero_documento"));
+        p.setTelefono(rs.getString("telefono"));
+        p.setEmail(rs.getString("email"));
+        p.setGenero(rs.getString("genero"));
+        p.setEdad(rs.getInt("edad"));
+        p.setFechaRegistro(rs.getString("fecha_registro"));
+        p.setEstado(rs.getInt("estado"));
+        return p;
+    }
+    
+    private Cita mapearCita(ResultSet rs) throws SQLException {
+        Cita c = new Cita();
+        c.setId(rs.getInt("id"));
+        c.setPacienteId(rs.getInt("paciente_id"));
+        c.setOdontologoId(rs.getInt("odontologo_id"));
+        c.setServicioId(rs.getInt("servicio_id"));
+        c.setFecha(rs.getString("fecha"));
+        c.setHora(rs.getString("hora"));
+        c.setEstado(rs.getString("estado"));
+        c.setDuracion(rs.getInt("duracion"));
+        c.setNota(rs.getString("nota"));
+        c.setPacienteNombre(rs.getString("paciente_nombre"));
+        c.setOdontologoNombre(rs.getString("odontologo_nombre"));
+        c.setServicioNombre(rs.getString("servicio_nombre"));
+        return c;
+    }
+    
+    private Venta mapearVenta(ResultSet rs) throws SQLException {
+        Venta v = new Venta();
+        v.setId(rs.getInt("id"));
+        v.setPacienteId(rs.getInt("paciente_id"));
+        v.setPacienteNombre(rs.getString("paciente_nombre"));
+        v.setTipoComprobante(rs.getString("tipo_comprobante"));
+        v.setMetodoPago(rs.getString("metodo_pago"));
+        v.setSubtotal(rs.getDouble("subtotal"));
+        v.setImpuesto(rs.getDouble("impuesto"));
+        v.setTotal(rs.getDouble("total"));
+        v.setEstado(rs.getString("estado"));
+        v.setFecha(rs.getString("fecha"));
+        return v;
+    }
+}
